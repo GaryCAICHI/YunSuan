@@ -536,7 +536,7 @@ class VIAluMisc(xlen: Int = 64) extends Module {
     isVrev8  -> rev8Result,
   ))
 
-  private val leadZeroIn = Mux(isCtz, brevResultSel8.asUInt, vs2)
+  private val leadZeroIn = Mux(isCtz, brevResult, vs2)
   private val lzc = Lzc(leadZeroIn, isVector)
 
   private val clzResultSel8  = Wire(Vec(8, UInt(8.W)))
@@ -616,5 +616,15 @@ class VIAluMisc(xlen: Int = 64) extends Module {
   dontTouch(scalResultSel32)
   dontTouch(scalResultSel64)
   dontTouch(shiftResult)
+  dontTouch(rightShift8)
+  dontTouch(rightShift16)
+  dontTouch(rightShift32)
+  dontTouch(rightShift64)
+  dontTouch(rightShiftData8)
+  dontTouch(rightShiftData16)
+  dontTouch(rightShiftData32)
+  dontTouch(rightShiftData64)
+
+
 
 }

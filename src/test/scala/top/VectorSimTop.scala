@@ -16,7 +16,7 @@ trait VSPParameter {
   val VLEN       : Int = 128
   val XLEN       : Int = 64
   val VIA_latency: Int = 0 // TODO: change to 1
-  val VIAF_latency: Int = 1 // TODO:
+  val VIAF_latency: Int = 1
   val VFF_latency: Int = 3 // TODO: check only mul and mul+add, different or not
   val VFD_latency: Int = 99
   val VFA_latency: Int = 1
@@ -62,7 +62,7 @@ class VecInfoBundle extends VPUTestBundle {
 class VSTInputIO extends VPUTestBundle {
   val src = Vec(4, Vec(VLEN/XLEN, UInt(XLEN.W)))
   val fuType = UInt(5.W)
-  val fuOpType = UInt(8.W)
+  val fuOpType = UInt(9.W)
   val sew = UInt(2.W)
   val uop_idx = UInt(6.W)
 
@@ -349,11 +349,10 @@ class SimTop() extends VPUTestModule {
   vperm_result.fflags(1) := 0.U
   vperm_result.vxsat := 0.U
 
-  val viaf = Module(new VIAluFWrapper)
-  viaf.io.in.bits.fuType := in.fuType
+  val viaf = Module(new VIAluFixPointWrapper)
+  viaf.io.in.valid := busy
   viaf.io.in.bits.fuOpType := opcode
-  viaf.io.in.bits.vsew := sew
-  viaf.io.in.bits.info.vstart := in.vinfo.vstart
+  viaf.io.in.bits.info.vsew := sew
   viaf.io.in.bits.info.vl := in.vinfo.vl
   viaf.io.in.bits.info.vlmul := in.vinfo.vlmul
   viaf.io.in.bits.info.vm := in.vinfo.vm
@@ -361,7 +360,6 @@ class SimTop() extends VPUTestModule {
   viaf.io.in.bits.info.ma := in.vinfo.ma
   viaf.io.in.bits.info.uopIdx := in.uop_idx
   viaf.io.in.bits.info.vxrm := in.rm_s
-  viaf.io.in.valid := true.B
   viaf.io.out.ready := true.B
   viaf.io.in.bits.src.zip(in.src).foreach { case (a, b) => a := b.asUInt }
   viaf_result.result.zipWithIndex.foreach { case (rs, i) => rs := viaf.io.out.bits.data(XLEN * (i + 1) - 1, XLEN * i) }
