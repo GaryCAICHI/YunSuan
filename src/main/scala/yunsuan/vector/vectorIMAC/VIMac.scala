@@ -26,7 +26,7 @@ class VIMac extends Module {
   val vstart_gte_vl = io.in.bits.info.vstart >= io.in.bits.info.vl
   val widen = srcTypeVs1(1, 0) =/= vdType(1, 0)
 
-  val vIMac64bs = Seq.fill(2)(Module(new VIMac64b))
+  val vIMac64bs = Seq.fill(2)(Module(new newVIMac64b))
   for (i <- 0 until 2) {
     vIMac64bs(i).io.fire := io.in.valid
     vIMac64bs(i).io.info := io.in.bits.info
