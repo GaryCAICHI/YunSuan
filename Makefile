@@ -1,8 +1,10 @@
 include Makefile.softfloat
 
 TOP ?= SimTop
+NEWVIMAC ?= newVIMac64b
 BUILD_DIR = ./build
 TOP_V = $(BUILD_DIR)/$(TOP).v
+NEWVIMAC_V = $(BUILD_DIR)/$(NEWVIMAC).v
 
 SCALA_FILE = $(shell find ./src/main/scala -name '*.scala')
 TEST_FILE = $(shell find ./src/test/scala -name '*.scala')
@@ -11,7 +13,11 @@ $(TOP_V): $(SCALA_FILE) $(TEST_FILE)
 	mkdir -p $(@D)
 	mill YunSuan.test.runMain yunsuan.top.$(TOP) -td $(@D) --full-stacktrace --target verilog
 
-.DEFUALT_GOAL = emu
+$(NEWVIMAC_V): $(SCALA_FILE) $(TEST_FILE)
+	mkdir -p $(@D)
+	mill YunSuan.test.runMain yunsuan.vector.mac.$(NEWVIMAC) -td $(@D) --full-stacktrace --target verilog
+
+.DEFAULT_GOAL = emu
 
 EMU_CSRC_DIR = $(abspath ./src/test/csrc)
 # EMU_VSRC_DIR = $(abspath ./src/test/vsrc)
@@ -67,6 +73,8 @@ clean-softfloat:
 	$(MAKE) -s -C $(SOFTFLOAT_BUILD_PATH) clean
 
 emu: $(SOFTFLOAT) $(EMU)
+
+newVIMac64b: $(NEWVIMAC_V)
 
 clean:
 	rm -rf build

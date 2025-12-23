@@ -28,9 +28,9 @@ void TestDriver::set_default_value(VSimTop *dut_ptr) {
 // fix set_test_type to select fuType
 void TestDriver::set_test_type() {
   test_type.pick_fuType = true;
-  test_type.pick_fuOpType = false;
+  test_type.pick_fuOpType = true;
   test_type.fuType = VIntegerMAC;
-  test_type.fuOpType = VMUL;
+  test_type.fuOpType = VSMUL;
   printf("Set Test Type Res: fuType:%d fuOpType:%d\n", test_type.fuType, test_type.fuOpType);
 }
 
@@ -431,6 +431,7 @@ void TestDriver::get_random_input() {
     input.vinfo.vm = true;
     input.vinfo.ta = false;
     input.vinfo.ma = false;
+    input.rm_s     = rand()%4;
     input.uop_idx = 0;
   }else{
     if (!test_type.pick_fuOpType) { input.fuOpType = gen_random_optype(); }
@@ -543,6 +544,7 @@ bool TestDriver::assign_input_raising(VSimTop *dut_ptr) {
   dut_ptr->io_in_bits_is_frs1 = input.is_frs1;
   dut_ptr->io_in_bits_is_frs2 = input.is_frs2;
   dut_ptr->io_in_bits_rm      = input.rm;
+  dut_ptr->io_in_bits_rm_s    = input.rm_s;
   dut_ptr->io_in_bits_vinfo_vstart = input.vinfo.vstart;
   dut_ptr->io_in_bits_vinfo_vl     = input.vinfo.vl;
   dut_ptr->io_in_bits_vinfo_vlmul  = input.vinfo.vlmul;
@@ -584,7 +586,7 @@ int TestDriver::diff_output_falling(VSimTop *dut_ptr) {
 void TestDriver::display_ref_input() {
   printf("REF Input:\n");
   printf("  src1 %016lx_%016lx src2 %016lx_%016lx src3 %016lx_%016lx src4 %016lx_%016lx\n", input.src1[1], input.src1[0], input.src2[1], input.src2[0], input.src3[1], input.src3[0], input.src4[1], input.src4[0]);
-  printf("  fuType %x fuOpType %x sew %x uop_idx %d src_widen %d widen %d is_frs1 %d rm %d\n", input.fuType, input.fuOpType, input.sew, input.uop_idx, input.src_widen, input.widen, input.is_frs1, input.rm);
+  printf("  fuType %x fuOpType %x sew %x uop_idx %d src_widen %d widen %d is_frs1 %d rm %d rm_s %d\n", input.fuType, input.fuOpType, input.sew, input.uop_idx, input.src_widen, input.widen, input.is_frs1, input.rm, input.rm_s);
   printf("  vstart %d vl %d vlmul %x vm %d ta %d ma %d\n", input.vinfo.vstart, input.vinfo.vl, input.vinfo.vlmul, input.vinfo.vm, input.vinfo.ta, input.vinfo.ma);
 }
 

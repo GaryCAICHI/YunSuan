@@ -295,10 +295,13 @@ VecOutput VPUGoldenModel::get_expected_output(VecInput input) {
         }
       }else if(input.fuType == VIntegerMAC) {
         if(input.widen){
-          if(j < (half_number >> 1))
+          if(j < (half_number >> 1)) {
             output.result[i] += (uint64_t)(output_part[i*(half_number>>1)+j].result&mask) << (j*(result_shift_len<<1));
+            output.vxsat |= output_part[i*(half_number>>1)+j].vxsat;
+          }
         }else{
           output.result[i] += ((uint64_t)output_part[i*half_number+j].result&mask) << (j*result_shift_len);
+          output.vxsat |= output_part[i*half_number+j].vxsat;
         }     
       }else {
         output.result[i] += ((uint64_t)output_part[i*half_number+j].result) << (j*result_shift_len);
@@ -312,7 +315,6 @@ VecOutput VPUGoldenModel::get_expected_output(VecInput input) {
       printf("Bad fflags %d: result %lx fflags %x\n", i, output.result[i], output.fflags[i]);
       exit(1);
     }
-
   }
   return output;
 }
@@ -475,6 +477,7 @@ ElementInput VPUGoldenModel::select_element(VecInput input, int idx) {
   element.src_widen = input.src_widen;
   element.widen = input.widen;
   element.rm = input.rm;
+  element.rm_s = input.rm_s;
   element.uop_idx = input.uop_idx;
   return element;
 }

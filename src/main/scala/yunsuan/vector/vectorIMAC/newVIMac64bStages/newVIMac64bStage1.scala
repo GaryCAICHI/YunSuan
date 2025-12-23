@@ -9,7 +9,6 @@ import yunsuan.util._
 
 class newVIMac64bStage1 extends Module {
   val io = IO(new Bundle {
-    val fire = Input(Bool())
     // val opcode = Input(new VIMacOpcode)
     val info = Input(new VIFuInfo)
     val srcType = Input(Vec(2, UInt(4.W)))
@@ -23,20 +22,20 @@ class newVIMac64bStage1 extends Module {
     val widen = Input(Bool())
     val isFixP = Input(Bool())
 
-    val compStage1ResultsS1 = Output(Vec(11, UInt(152.W)))
-    val fireS1              = Output(Bool())
-    val highHalfS1          = Output(Bool())
-    val uopIdxS1            = Output(UInt(6.W))
-    val widenS1             = Output(Bool())
-    val vxrmS1              = Output(UInt(2.W))
-    val isFixPS1            = Output(Bool())
-    val sewIs8S1            = Output(Bool())
-    val sewIs16S1           = Output(Bool())
-    val sewIs32S1           = Output(Bool())
-    val sewIs64S1           = Output(Bool())
+    val compStage1ResultsS1    = Output(Vec(7, UInt(152.W)))
+    val wallaceLine34NonFixPS1 = Output(UInt(152.W))
+    val wallaceLine34FixPS1    = Output(UInt(152.W))
+    val highHalfS1             = Output(Bool())
+    val uopIdxS1               = Output(UInt(6.W))
+    val widenS1                = Output(Bool())
+    val vxrmS1                 = Output(UInt(2.W))
+    val isFixPS1               = Output(Bool())
+    val sewIs8S1               = Output(Bool())
+    val sewIs16S1              = Output(Bool())
+    val sewIs32S1              = Output(Bool())
+    val sewIs64S1             = Output(Bool())
   })
 
-  val fire = io.fire
   val vs2 = io.vs2
   val vs1 = io.vs1
   val oldVd = io.oldVd
@@ -124,7 +123,9 @@ class newVIMac64bStage1 extends Module {
 
   
   // 5.generate wallace tree
-  val wallaceTree = Wire(Vec(34, UInt(152.W)))
+  val wallaceTree = Wire(Vec(33, UInt(152.W)))
+  val wallaceLine34NonFixP = Wire(UInt(152.W))
+  val wallaceLine34FixP    = Wire(UInt(152.W))
 
   val wallaceTreeGen = Module(new wallaceTreeGenerator())
   wallaceTreeGen.io.partProd      := partProd
@@ -141,17 +142,20 @@ class newVIMac64bStage1 extends Module {
   wallaceTreeGen.io.sewIs16       := sewIs16
   wallaceTreeGen.io.sewIs32       := sewIs32
   wallaceTreeGen.io.sewIs64       := sewIs64
-  wallaceTree := wallaceTreeGen.io.wallaceTree
+  wallaceTree          := wallaceTreeGen.io.wallaceTree
+  wallaceLine34NonFixP := wallaceTreeGen.io.wallaceLine34NonFixP
+  wallaceLine34FixP    := wallaceTreeGen.io.wallaceLine34FixP
 
   // 6.wallace compress stage 1
-  val compStage1Results = Wire(Vec(11, UInt(152.W)))
+  val compStage1Results = Wire(Vec(7, UInt(152.W)))
   
   val wallace3to2CompStage1 = Module(new wallace3to2CompressorStage1())
   wallace3to2CompStage1.io.wallaceTree := wallaceTree
   compStage1Results := wallace3to2CompStage1.io.compStage1Results
 
-  io.compStage1ResultsS1 := compStage1Results
-  io.fireS1              := fire
+  io.compStage1ResultsS1    := compStage1Results
+  io.wallaceLine34NonFixPS1 := wallaceLine34NonFixP
+  io.wallaceLine34FixPS1    := wallaceLine34FixP
   io.highHalfS1          := highHalf
   io.uopIdxS1            := uopIdx
   io.widenS1             := widen

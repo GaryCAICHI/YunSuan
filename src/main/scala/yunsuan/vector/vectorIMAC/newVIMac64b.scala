@@ -118,7 +118,9 @@ class newVIMac64b extends Module {
 
   
   // 5.generate wallace tree
-  val wallaceTree = Wire(Vec(34, UInt(152.W)))
+  val wallaceTree = Wire(Vec(33, UInt(152.W)))
+  val wallaceLine34NonFixP = Wire(UInt(152.W))
+  val wallaceLine34FixP    = Wire(UInt(152.W))
 
   val wallaceTreeGen = Module(new wallaceTreeGenerator())
   wallaceTreeGen.io.partProd      := partProd
@@ -135,10 +137,12 @@ class newVIMac64b extends Module {
   wallaceTreeGen.io.sewIs16       := sewIs16
   wallaceTreeGen.io.sewIs32       := sewIs32
   wallaceTreeGen.io.sewIs64       := sewIs64
-  wallaceTree := wallaceTreeGen.io.wallaceTree
+  wallaceTree          := wallaceTreeGen.io.wallaceTree
+  wallaceLine34NonFixP := wallaceTreeGen.io.wallaceLine34NonFixP
+  wallaceLine34FixP    := wallaceTreeGen.io.wallaceLine34FixP
 
   // 6.wallace compress stage 1
-  val compStage1Results = Wire(Vec(11, UInt(152.W)))
+  val compStage1Results = Wire(Vec(7, UInt(152.W)))
   
   val wallace3to2CompStage1 = Module(new wallace3to2CompressorStage1())
   wallace3to2CompStage1.io.wallaceTree := wallaceTree
@@ -146,122 +150,129 @@ class newVIMac64b extends Module {
 
   // End of First Pipeline Stage
   //-----------------------------------------------------------------------------
-  val fireS1              = GatedValidRegNext(fire)
-  val compStage1ResultsS1 = RegEnable(compStage1Results, fire)
-  val highHalfS1          = RegEnable(highHalf, fire)
-  val uopIdxS1            = RegEnable(uopIdx, fire)
-  val widenS1             = RegEnable(widen, fire)
-  val vxrmS1              = RegEnable(vxrm, fire)
-  val isFixPS1            = RegEnable(isFixP, fire)
-  val sewIs8S1            = RegEnable(sewIs8, fire)
-  val sewIs16S1           = RegEnable(sewIs16, fire)
-  val sewIs32S1           = RegEnable(sewIs32, fire)
-  val sewIs64S1           = RegEnable(sewIs64, fire)
+  val fireS1                 = GatedValidRegNext(fire)
+  val compStage1ResultsS1    = RegEnable(compStage1Results, fire)
+  val wallaceLine34NonFixPS1 = RegEnable(wallaceLine34NonFixP, fire)
+  val wallaceLine34FixPS1    = RegEnable(wallaceLine34FixP, fire)
+  val highHalfS1             = RegEnable(highHalf, fire)
+  val uopIdxS1               = RegEnable(uopIdx, fire)
+  val widenS1                = RegEnable(widen, fire)
+  val vxrmS1                 = RegEnable(vxrm, fire)
+  val isFixPS1               = RegEnable(isFixP, fire)
+  val sewIs8S1               = RegEnable(sewIs8, fire)
+  val sewIs16S1              = RegEnable(sewIs16, fire)
+  val sewIs32S1              = RegEnable(sewIs32, fire)
+  val sewIs64S1              = RegEnable(sewIs64, fire)
   //-----------------------------------------------------------------------------
   // Start of Second Pipeline Stage
 
   // 7.wallace compress stage 2
-  val sum34to2  = Wire(UInt(152.W))
-  val cout34to2 = Wire(UInt(152.W))
+  val sum34to2NonFixP  = Wire(UInt(152.W))
+  val cout34to2NonFixP = Wire(UInt(152.W))
+  val sum34to2FixP     = Wire(UInt(152.W))
+  val cout34to2FixP    = Wire(UInt(152.W))
 
   val wallace3to2CompStage2 = Module(new wallace3to2CompressorStage2())
-  wallace3to2CompStage2.io.compStage1Results := compStage1ResultsS1
-  sum34to2  := wallace3to2CompStage2.io.sum34to2
-  cout34to2 := wallace3to2CompStage2.io.cout34to2
+  wallace3to2CompStage2.io.compStage1Results    := compStage1ResultsS1
+  wallace3to2CompStage2.io.wallaceLine34NonFixP := wallaceLine34NonFixPS1
+  wallace3to2CompStage2.io.wallaceLine34FixP    := wallaceLine34FixPS1
+  sum34to2NonFixP  := wallace3to2CompStage2.io.sum34to2NonFixP
+  cout34to2NonFixP := wallace3to2CompStage2.io.cout34to2NonFixP
+  sum34to2FixP     := wallace3to2CompStage2.io.sum34to2FixP
+  cout34to2FixP    := wallace3to2CompStage2.io.cout34to2FixP
 
   // 8.get final sum
-  val sumFinal  = Wire(UInt(152.W))
+  val sumFinalNonFixP  = Wire(UInt(152.W))
+  val sumFinalFixP     = Wire(UInt(152.W))
   
-  val finalSumAdder = Module(new fullAdder152b())
-  finalSumAdder.io.sum34to2  := sum34to2
-  finalSumAdder.io.cout34to2 := cout34to2
-  sumFinal := finalSumAdder.io.sumFinal
-  
+  val finalSumAdderNonFixP = Module(new fullAdder152b())
+  finalSumAdderNonFixP.io.sum34to2  := sum34to2NonFixP
+  finalSumAdderNonFixP.io.cout34to2 := cout34to2NonFixP
+  sumFinalNonFixP := finalSumAdderNonFixP.io.sumFinal
+
+  val finalSumAdderFixP = Module(new fullAdder152b())
+  finalSumAdderFixP.io.sum34to2  := sum34to2FixP
+  finalSumAdderFixP.io.cout34to2 := cout34to2FixP
+  sumFinalFixP := finalSumAdderFixP.io.sumFinal
+
   // End of Second Pipeline Stage
   //-----------------------------------------------------------------------------
-  val sumFinalS2          = RegEnable(sumFinal, fireS1)
-  val highHalfS2          = RegEnable(highHalfS1, fireS1)
-  val uopIdxS2            = RegEnable(uopIdxS1, fireS1)
-  val widenS2             = RegEnable(widenS1, fireS1)
-  val vxrmS2              = RegEnable(vxrmS1, fireS1)
-  val isFixPS2            = RegEnable(isFixPS1, fireS1)
-  val sewIs8S2            = RegEnable(sewIs8S1, fireS1)
-  val sewIs16S2           = RegEnable(sewIs16S1, fireS1)
-  val sewIs32S2           = RegEnable(sewIs32S1, fireS1)
-  val sewIs64S2           = RegEnable(sewIs64S1, fireS1)
+  val sumFinalNonFixPS2 = RegEnable(sumFinalNonFixP, fireS1)
+  val sumFinalFixPS2    = RegEnable(sumFinalFixP, fireS1)
+  val highHalfS2        = RegEnable(highHalfS1, fireS1)
+  val uopIdxS2          = RegEnable(uopIdxS1, fireS1)
+  val widenS2           = RegEnable(widenS1, fireS1)
+  val vxrmS2            = RegEnable(vxrmS1, fireS1)
+  val isFixPS2          = RegEnable(isFixPS1, fireS1)
+  val sewIs8S2          = RegEnable(sewIs8S1, fireS1)
+  val sewIs16S2         = RegEnable(sewIs16S1, fireS1)
+  val sewIs32S2         = RegEnable(sewIs32S1, fireS1)
+  val sewIs64S2         = RegEnable(sewIs64S1, fireS1)
   //-----------------------------------------------------------------------------
   // Start of Third Pipeline Stage
-  
+
   // 9.get non fixed-point vd
   val vdNonFixP = Wire(UInt(64.W))
 
   val vdNonFixPGen = Module(new vdNonFixPGenerator())
-  vdNonFixPGen.io.sumFinal := sumFinalS2
-  vdNonFixPGen.io.highHalf := highHalfS2
-  vdNonFixPGen.io.widen    := widenS2
-  vdNonFixPGen.io.uopIdx   := uopIdxS2
-  vdNonFixPGen.io.sewIs8   := sewIs8S2
-  vdNonFixPGen.io.sewIs16  := sewIs16S2
-  vdNonFixPGen.io.sewIs32  := sewIs32S2
-  vdNonFixPGen.io.sewIs64  := sewIs64S2
+  vdNonFixPGen.io.sumFinalNonFixP := sumFinalNonFixPS2
+  vdNonFixPGen.io.highHalf        := highHalfS2
+  vdNonFixPGen.io.widen           := widenS2
+  vdNonFixPGen.io.uopIdx          := uopIdxS2
+  vdNonFixPGen.io.sewIs8          := sewIs8S2
+  vdNonFixPGen.io.sewIs16         := sewIs16S2
+  vdNonFixPGen.io.sewIs32         := sewIs32S2
+  vdNonFixPGen.io.sewIs64         := sewIs64S2
   vdNonFixP := vdNonFixPGen.io.vdNonFixP
-  // ----------- fixed-point instruction result handling  -----------
-  // 10.generate fixed-point input
-  val vdRndIn = Wire(UInt(64.W))
-
-  val vdRndInputGen = Module(new vdRndInputGenerator())
-  vdRndInputGen.io.sumFinal := sumFinalS2
-  vdRndInputGen.io.sewIs8   := sewIs8S2
-  vdRndInputGen.io.sewIs16  := sewIs16S2
-  vdRndInputGen.io.sewIs32  := sewIs32S2
-  vdRndInputGen.io.sewIs64  := sewIs64S2
-  vdRndIn := vdRndInputGen.io.vdRndIn
-
-  // 11.get vxsat bits
+  
+  // ----- fixed-point instruction result handling -----
+  // 10.get vxsat bits
+  val vdSat = Wire(UInt(64.W))
   val vxsat = Wire(UInt(8.W))
 
   val vxsatGen = Module(new vxsatGenerator())
-  vxsatGen.io.sumFinal := sumFinalS2
-  vxsatGen.io.sewIs8   := sewIs8S2
-  vxsatGen.io.sewIs16  := sewIs16S2
-  vxsatGen.io.sewIs32  := sewIs32S2
-  vxsatGen.io.sewIs64  := sewIs64S2
+  vxsatGen.io.sumFinalNonFixP := sumFinalNonFixPS2
+  vxsatGen.io.sewIs8          := sewIs8S2
+  vxsatGen.io.sewIs16         := sewIs16S2
+  vxsatGen.io.sewIs32         := sewIs32S2
+  vxsatGen.io.sewIs64         := sewIs64S2
+  vdSat := vxsatGen.io.vdSat
   vxsat := vxsatGen.io.vxsat
 
-  // 12.get rounding increment bits
+  // 11.get rounding increment bits
   val rndIncVec = Wire(UInt(8.W))
 
   val rndIncVecGen = Module(new rndIncVecGenerator())
-  rndIncVecGen.io.sumFinal := sumFinalS2
-  rndIncVecGen.io.vxrm     := vxrmS2
-  rndIncVecGen.io.sewIs8   := sewIs8S2
-  rndIncVecGen.io.sewIs16  := sewIs16S2
-  rndIncVecGen.io.sewIs32  := sewIs32S2
-  rndIncVecGen.io.sewIs64  := sewIs64S2
+  rndIncVecGen.io.sumFinalNonFixP := sumFinalNonFixPS2
+  rndIncVecGen.io.vxrm            := vxrmS2
+  rndIncVecGen.io.sewIs8          := sewIs8S2
+  rndIncVecGen.io.sewIs16         := sewIs16S2
+  rndIncVecGen.io.sewIs32         := sewIs32S2
+  rndIncVecGen.io.sewIs64         := sewIs64S2
   rndIncVec := rndIncVecGen.io.rndIncVec
 
-  // 13.get rounding result
-  val vdRndOut = Wire(Vec(8, UInt(8.W)))
+  // 12.get rounding vd
+  val vdRndInc    = Wire(UInt(64.W))
 
   val vdRndGen = Module(new vdRndGenerator())
-  vdRndGen.io.vdRndIn   := vdRndIn
-  vdRndGen.io.rndIncVec := rndIncVec
+  vdRndGen.io.sumFinalFixP := sumFinalFixPS2
   vdRndGen.io.sewIs8   := sewIs8S2
   vdRndGen.io.sewIs16  := sewIs16S2
   vdRndGen.io.sewIs32  := sewIs32S2
   vdRndGen.io.sewIs64  := sewIs64S2
-  vdRndOut := vdRndGen.io.vdRndOut
+  vdRndInc    := vdRndGen.io.vdRndInc
 
   // 14.get fixed-point vd
   val vdFixP = Wire(UInt(64.W))
   
   val vdFixPGen = Module(new vdFixPGenerator())
-  vdFixPGen.io.vdRndOut := vdRndOut
-  vdFixPGen.io.vxsat    := vxsat
-  vdFixPGen.io.sewIs8   := sewIs8S2
-  vdFixPGen.io.sewIs16  := sewIs16S2
-  vdFixPGen.io.sewIs32  := sewIs32S2
-  vdFixPGen.io.sewIs64  := sewIs64S2
+  vdFixPGen.io.vdRndInc    := vdRndInc
+  vdFixPGen.io.vdSat       := vdSat
+  vdFixPGen.io.rndIncVec   := rndIncVec
+  vdFixPGen.io.sewIs8      := sewIs8S2
+  vdFixPGen.io.sewIs16     := sewIs16S2
+  vdFixPGen.io.sewIs32     := sewIs32S2
+  vdFixPGen.io.sewIs64     := sewIs64S2
   vdFixP := vdFixPGen.io.vdFixP
 
   // 15.get final output
@@ -483,7 +494,9 @@ class wallaceTreeGenerator extends Module {
     val sewIs32       = Input(Bool())
     val sewIs64       = Input(Bool())
 
-    val wallaceTree = Output(Vec(34, UInt(152.W)))
+    val wallaceTree          = Output(Vec(33, UInt(152.W)))
+    val wallaceLine34NonFixP = Output(UInt(152.W))
+    val wallaceLine34FixP    = Output(UInt(152.W))
   })
 
   def wallaceTreeGen(i: Int, wallaceLine: UInt, partProd: UInt, partProdCin: UInt, sewIs8: Bool, sewIs16: Bool, sewIs32: Bool, sewIs64: Bool): Unit = {
@@ -542,73 +555,82 @@ class wallaceTreeGenerator extends Module {
   val sewIs32       = io.sewIs32
   val sewIs64       = io.sewIs64
 
-  val wallaceTree = Wire(Vec(34, UInt(152.W)))
+  val wallaceTree = Wire(Vec(33, UInt(152.W)))
+  val wallaceLine34NonFixP = Wire(UInt(152.W))
+  val wallaceLine34FixP    = Wire(UInt(152.W))
   wallaceTreeGen(0, wallaceTree(0), partProd(0), 0.U(1.W), sewIs8, sewIs16, sewIs32, sewIs64)
   for (i <- 1 until 32) {
     wallaceTreeGen(i, wallaceTree(i), partProd(i), partProdCin(i-1), sewIs8, sewIs16, sewIs32, sewIs64)
   }
 
-  wallaceTree(32) := Mux1H(Seq(
-    sewIs8  -> Cat(UIntSplit(vs2, 8 ).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(2.W),  Mux(~vs1_is_signed & vs1(63 - 8*index),  BitsExtend(x,   9 , vs2_is_signed), 0.U(9.W)) , 0.U(1.W), partProdCin(31 - 4*index),  0.U(6.W))}),
-    sewIs16 -> Cat(UIntSplit(vs2, 16).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(5.W),  Mux(~vs1_is_signed & vs1(63 - 16*index), BitsExtend(x,   17, vs2_is_signed), 0.U(17.W)), 0.U(1.W), partProdCin(31 - 8*index),  0.U(14.W))}),
-    sewIs32 -> Cat(UIntSplit(vs2, 32).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(11.W), Mux(~vs1_is_signed & vs1(63 - 32*index), BitsExtend(x,   33, vs2_is_signed), 0.U(33.W)), 0.U(1.W), partProdCin(31 - 16*index), 0.U(30.W))}),
-    sewIs64 ->                                                                    Cat(0.U(23.W), Mux(~vs1_is_signed & vs1(63),            BitsExtend(vs2, 65, vs2_is_signed), 0.U(35.W)), 0.U(1.W), partProdCin(31)           , 0.U(62.W))
-  ))
-
-  wallaceTree(33) := Mux(io.isMacc, Mux1H(Seq(
+  wallaceTree(32) := Mux(io.isMacc, Mux1H(Seq(
     sewIs8  -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 16).reverse.map(x => Cat(0.U(2.W),  BitsExtend(x, 17, vd_is_signed)))), Cat(UIntSplit(oldVd, 8 ).map(x => Cat(0.U(2.W),  BitsExtend(x, 17, vd_is_signed))).reverse)),
     sewIs16 -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 32).reverse.map(x => Cat(0.U(5.W),  BitsExtend(x, 33, vd_is_signed)))), Cat(UIntSplit(oldVd, 16).map(x => Cat(0.U(5.W),  BitsExtend(x, 33, vd_is_signed))).reverse)),
     sewIs32 -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 64).reverse.map(x => Cat(0.U(11.W), BitsExtend(x, 65, vd_is_signed)))), Cat(UIntSplit(oldVd, 32).map(x => Cat(0.U(11.W), BitsExtend(x, 65, vd_is_signed))).reverse)),
     sewIs64 -> Cat(0.U(23.W), BitsExtend(oldVd, 129, vd_is_signed))
   )), 0.U)
 
+  wallaceLine34NonFixP := Mux1H(Seq(
+    sewIs8  -> Cat(UIntSplit(vs2, 8 ).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(2.W),  Mux(~vs1_is_signed & vs1(63 - 8*index),  BitsExtend(x,   9 , vs2_is_signed), 0.U(9.W)) , 0.U(1.W), partProdCin(31 - 4*index),  0.U(6.W))}),
+    sewIs16 -> Cat(UIntSplit(vs2, 16).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(5.W),  Mux(~vs1_is_signed & vs1(63 - 16*index), BitsExtend(x,   17, vs2_is_signed), 0.U(17.W)), 0.U(1.W), partProdCin(31 - 8*index),  0.U(14.W))}),
+    sewIs32 -> Cat(UIntSplit(vs2, 32).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(11.W), Mux(~vs1_is_signed & vs1(63 - 32*index), BitsExtend(x,   33, vs2_is_signed), 0.U(33.W)), 0.U(1.W), partProdCin(31 - 16*index), 0.U(30.W))}),
+    sewIs64 ->                                                                    Cat(0.U(23.W), Mux(~vs1_is_signed & vs1(63),            BitsExtend(vs2, 65, vs2_is_signed), 0.U(35.W)), 0.U(1.W), partProdCin(31)           , 0.U(62.W))
+  ))
+
+  wallaceLine34FixP := Mux1H(Seq(
+    sewIs8  -> Cat(UIntSplit(vs2, 8 ).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(2.W),  Mux(~vs1_is_signed & vs1(63 - 8*index),  BitsExtend(x,   9 , vs2_is_signed), 0.U(9.W)) , 1.U(1.W), partProdCin(31 - 4*index),  0.U(6.W))}),
+    sewIs16 -> Cat(UIntSplit(vs2, 16).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(5.W),  Mux(~vs1_is_signed & vs1(63 - 16*index), BitsExtend(x,   17, vs2_is_signed), 0.U(17.W)), 1.U(1.W), partProdCin(31 - 8*index),  0.U(14.W))}),
+    sewIs32 -> Cat(UIntSplit(vs2, 32).reverse.zipWithIndex.map{ case(x, index) => Cat(0.U(11.W), Mux(~vs1_is_signed & vs1(63 - 32*index), BitsExtend(x,   33, vs2_is_signed), 0.U(33.W)), 1.U(1.W), partProdCin(31 - 16*index), 0.U(30.W))}),
+    sewIs64 ->                                                                    Cat(0.U(23.W), Mux(~vs1_is_signed & vs1(63),            BitsExtend(vs2, 65, vs2_is_signed), 0.U(35.W)), 1.U(1.W), partProdCin(31)           , 0.U(62.W))
+  ))
+
   io.wallaceTree := wallaceTree
+  io.wallaceLine34NonFixP := wallaceLine34NonFixP
+  io.wallaceLine34FixP    := wallaceLine34FixP
 }
 
-class wallace3to2CompressorStage1 extends Module {
+class wallace3to2CompressorStage1 extends Module with wallace3to2Compressor {
   val io = IO(new Bundle {
-    val wallaceTree = Input(Vec(34, UInt(152.W)))
+    val wallaceTree = Input(Vec(33, UInt(152.W)))
 
-    val compStage1Results = Output(Vec(11, UInt(152.W)))
+    val compStage1Results = Output(Vec(7, UInt(152.W)))
   })
 
-  def compressor3to2(a: UInt, b: UInt, c: UInt): (UInt, UInt) = {
-    val sum  = Wire(UInt(152.W))
-    val cout = Wire(UInt(152.W))
-    sum  := a ^ b ^ c
-    cout := (a & b) | (b & c) | (c & a)
-    (sum, cout)
-  }
-
-  def wallaceCompressStage1(compressIn: Seq[UInt]): Seq[UInt] = {
-    if (compressIn.size == 11) {
-      compressIn
-    }
-    else {
-      val compressGroupNum = compressIn.size / 3
-      val sum =  Wire(Vec(compressGroupNum, UInt(152.W)))
-      val cout = Wire(Vec(compressGroupNum, UInt(152.W)))
-      for(i <- 0 until compressGroupNum) {
-        sum(i)  := compressor3to2(compressIn(3*i), compressIn(3*i+1), compressIn(3*i+2))._1
-        cout(i) := Cat(compressor3to2(compressIn(3*i), compressIn(3*i+1), compressIn(3*i+2))._2(150,0), 0.U(1.W))
-      }
-      wallaceCompressStage1(sum ++ cout ++ compressIn.drop(3*compressGroupNum))
-    }
-  }
-
   val wallaceTree = io.wallaceTree
-  val result = wallaceCompressStage1(wallaceTree)
+  val result = wallaceCompress(7, wallaceTree)
   io.compStage1Results := result
 }
 
-class wallace3to2CompressorStage2 extends Module {
+class wallace3to2CompressorStage2 extends Module with wallace3to2Compressor {
   val io = IO(new Bundle {
-    val compStage1Results = Input(Vec(11, UInt(152.W)))
+    val compStage1Results    = Input(Vec(7, UInt(152.W)))
+    val wallaceLine34NonFixP = Input(UInt(152.W))
+    val wallaceLine34FixP    = Input(UInt(152.W))
 
-    val sum34to2  = Output(UInt(152.W))
-    val cout34to2 = Output(UInt(152.W))
+    val sum34to2NonFixP  = Output(UInt(152.W))
+    val cout34to2NonFixP = Output(UInt(152.W))
+    val sum34to2FixP     = Output(UInt(152.W))
+    val cout34to2FixP    = Output(UInt(152.W))
   })
 
+  val compStage1Results    = io.compStage1Results
+  val wallaceLine34NonFixP = io.wallaceLine34NonFixP
+  val wallaceLine34FixP    = io.wallaceLine34FixP
+  
+  val interCompressResult = wallaceCompress(5, compStage1Results)
+
+  val nonFixPCompressIn = interCompressResult :+ wallaceLine34NonFixP
+  val fixPCompressIn    = interCompressResult :+ wallaceLine34FixP
+  val nonFixPResult = wallaceCompress(2, nonFixPCompressIn)
+  val fixPResult    = wallaceCompress(2, fixPCompressIn)
+  
+  io.sum34to2NonFixP  := nonFixPResult(0)
+  io.cout34to2NonFixP := nonFixPResult(1)
+  io.sum34to2FixP     := fixPResult(0)
+  io.cout34to2FixP    := fixPResult(1)
+}
+
+trait wallace3to2Compressor {
   def compressor3to2(a: UInt, b: UInt, c: UInt): (UInt, UInt) = {
     val sum  = Wire(UInt(152.W))
     val cout = Wire(UInt(152.W))
@@ -617,8 +639,8 @@ class wallace3to2CompressorStage2 extends Module {
     (sum, cout)
   }
 
-  def wallaceCompressStage2(compressIn: Seq[UInt]): Seq[UInt] = {
-    if (compressIn.size == 2) {
+  def wallaceCompress(outNum: Int, compressIn: Seq[UInt]): Seq[UInt] = {
+    if (compressIn.size == outNum) {
       compressIn
     }
     else {
@@ -629,14 +651,9 @@ class wallace3to2CompressorStage2 extends Module {
         sum(i)  := compressor3to2(compressIn(3*i), compressIn(3*i+1), compressIn(3*i+2))._1
         cout(i) := Cat(compressor3to2(compressIn(3*i), compressIn(3*i+1), compressIn(3*i+2))._2(150,0), 0.U(1.W))
       }
-      wallaceCompressStage2(sum ++ cout ++ compressIn.drop(3*compressGroupNum))
+      wallaceCompress(outNum, sum ++ cout ++ compressIn.drop(3*compressGroupNum))
     }
   }
-
-  val compStage1Results = io.compStage1Results
-  val result = wallaceCompressStage2(compStage1Results)
-  io.sum34to2  := result(0)
-  io.cout34to2 := result(1)
 }
 
 class fullAdder152b extends Module {
@@ -652,100 +669,84 @@ class fullAdder152b extends Module {
 
 class vdNonFixPGenerator extends Module {
   val io = IO(new Bundle {
-    val sumFinal   = Input(UInt(152.W))
-    val highHalf   = Input(Bool())
-    val widen      = Input(Bool())
-    val uopIdx     = Input(UInt(6.W))
-    val sewIs8     = Input(Bool())
-    val sewIs16    = Input(Bool())
-    val sewIs32    = Input(Bool())
-    val sewIs64    = Input(Bool())
+    val sumFinalNonFixP   = Input(UInt(152.W))
+    val highHalf          = Input(Bool())
+    val widen             = Input(Bool())
+    val uopIdx            = Input(UInt(6.W))
+    val sewIs8            = Input(Bool())
+    val sewIs16           = Input(Bool())
+    val sewIs32           = Input(Bool())
+    val sewIs64           = Input(Bool())
 
     val vdNonFixP  = Output(UInt(64.W))
   })
 
-  val sumFinal = io.sumFinal
-  val highHalf = io.highHalf
-  val widen    = io.widen
-  val uopIdx   = io.uopIdx
-  val sewIs8   = io.sewIs8
-  val sewIs16  = io.sewIs16
-  val sewIs32  = io.sewIs32
-  val sewIs64  = io.sewIs64
+  val sumFinalNonFixP = io.sumFinalNonFixP
+  val highHalf        = io.highHalf
+  val widen           = io.widen
+  val uopIdx          = io.uopIdx
+  val sewIs8          = io.sewIs8
+  val sewIs16         = io.sewIs16
+  val sewIs32         = io.sewIs32
+  val sewIs64         = io.sewIs64
 
   io.vdNonFixP := Mux1H(Seq(
-    sewIs64 -> Mux(highHalf, sumFinal(127,64), sumFinal(63,0)),
-    sewIs32 -> Mux(widen, Mux(uopIdx(0), sumFinal(140, 77), sumFinal(63,0)), Cat(UIntSplit(sumFinal, 76).reverse.map(x => Mux(highHalf, x(63,32), x(31,0))))),
-    sewIs16 -> Mux(widen, Cat(UIntSplit(Mux(uopIdx(0), sumFinal(151, 76), sumFinal(75, 0)), 38).reverse.map(x => x(31,0))), Cat(UIntSplit(sumFinal, 38).reverse.map(x => Mux(highHalf, x(31,16), x(15,0))))),
-    sewIs8  -> Mux(widen, Cat(UIntSplit(Mux(uopIdx(0), sumFinal(151, 76), sumFinal(75, 0)), 19).reverse.map(x => x(15,0))), Cat(UIntSplit(sumFinal, 19).reverse.map(x => Mux(highHalf, x(15,8),  x(7, 0)))))
+    sewIs64 -> Mux(highHalf, sumFinalNonFixP(127,64), sumFinalNonFixP(63,0)),
+    sewIs32 -> Mux(widen, Mux(uopIdx(0), sumFinalNonFixP(140, 77), sumFinalNonFixP(63,0)), Cat(UIntSplit(sumFinalNonFixP, 76).reverse.map(x => Mux(highHalf, x(63,32), x(31,0))))),
+    sewIs16 -> Mux(widen, Cat(UIntSplit(Mux(uopIdx(0), sumFinalNonFixP(151, 76), sumFinalNonFixP(75, 0)), 38).reverse.map(x => x(31,0))), Cat(UIntSplit(sumFinalNonFixP, 38).reverse.map(x => Mux(highHalf, x(31,16), x(15,0))))),
+    sewIs8  -> Mux(widen, Cat(UIntSplit(Mux(uopIdx(0), sumFinalNonFixP(151, 76), sumFinalNonFixP(75, 0)), 19).reverse.map(x => x(15,0))), Cat(UIntSplit(sumFinalNonFixP, 19).reverse.map(x => Mux(highHalf, x(15,8),  x(7, 0)))))
   ))
-}
-
-class vdRndInputGenerator extends Module {
-  val io = IO(new Bundle {
-    val sumFinal    = Input(UInt(152.W))
-    val sewIs8      = Input(Bool())
-    val sewIs16     = Input(Bool())
-    val sewIs32     = Input(Bool())
-    val sewIs64     = Input(Bool())
-
-    val vdRndIn     = Output(UInt(64.W))
-  })
-  val sumFinal = io.sumFinal
-  val sewIs64  = io.sewIs64
-  val sewIs32  = io.sewIs32
-  val sewIs16  = io.sewIs16
-  val sewIs8   = io.sewIs8
-
-  val vdRndIn  = Wire(UInt(64.W))
-  vdRndIn := Mux1H(Seq(
-    sewIs8  -> Cat(UIntSplit(sumFinal, 19).reverse.map(x => x(14, 7))),
-    sewIs16 -> Cat(UIntSplit(sumFinal, 38).reverse.map(x => x(30, 15))),
-    sewIs32 -> Cat(UIntSplit(sumFinal, 76).reverse.map(x => x(62, 31))),
-    sewIs64 -> sumFinal(126, 63)
-  ))
-  
-  io.vdRndIn := vdRndIn
 }
 
 class vxsatGenerator extends Module {
   val io = IO(new Bundle {
-    val sumFinal    = Input(UInt(152.W))
-    val sewIs8      = Input(Bool())
-    val sewIs16     = Input(Bool())
-    val sewIs32     = Input(Bool())
-    val sewIs64     = Input(Bool())
+    val sumFinalNonFixP = Input(UInt(152.W))
+    val sewIs8          = Input(Bool())
+    val sewIs16         = Input(Bool())
+    val sewIs32         = Input(Bool())
+    val sewIs64         = Input(Bool())
 
-    val vxsat       = Output(UInt(8.W))
+    val vdSat           = Output(UInt(64.W))
+    val vxsat           = Output(UInt(8.W))
   })
 
-  val sumFinal = io.sumFinal
+  val sumFinalNonFixP = io.sumFinalNonFixP
   val sewIs64  = io.sewIs64
   val sewIs32  = io.sewIs32
   val sewIs16  = io.sewIs16
   val sewIs8   = io.sewIs8
   
   val vxsat    = Wire(UInt(8.W))
+  val vdSat    = Wire(UInt(64.W))
+  
   vxsat := Mux1H(Seq(
-    sewIs8  -> Cat(UIntSplit(sumFinal, 19).reverse.map(x => x(15,14) === 1.U(2.W))),
-    sewIs16 -> Cat(UIntSplit(sumFinal, 38).reverse.map(x => Fill(2, x(31,30) === 1.U(2.W)))),
-    sewIs32 -> Cat(UIntSplit(sumFinal, 76).reverse.map(x => Fill(4, x(63,62) === 1.U(2.W)))),
-    sewIs64 -> Fill(8, sumFinal(127,126) === 1.U(2.W))
+    sewIs8  -> Cat(UIntSplit(sumFinalNonFixP, 19).reverse.map(x => x(15,14) === 1.U(2.W))),
+    sewIs16 -> Cat(UIntSplit(sumFinalNonFixP, 38).reverse.map(x => Fill(2, x(31,30) === 1.U(2.W)))),
+    sewIs32 -> Cat(UIntSplit(sumFinalNonFixP, 76).reverse.map(x => Fill(4, x(63,62) === 1.U(2.W)))),
+    sewIs64 -> Fill(8, sumFinalNonFixP(127,126) === 1.U(2.W))
   ))
 
-  io.vxsat := vxsat
+  vdSat := Mux1H(Seq(
+    sewIs8  -> Cat(UIntSplit(sumFinalNonFixP, 19).reverse.zip(UIntSplit(vxsat, 1).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7F".U(8.W),        x(14,7))}),
+    sewIs16 -> Cat(UIntSplit(sumFinalNonFixP, 38).reverse.zip(UIntSplit(vxsat, 2).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7FFF".U(16.W),     x(30,15))}),
+    sewIs32 -> Cat(UIntSplit(sumFinalNonFixP, 76).reverse.zip(UIntSplit(vxsat, 4).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7FFFFFFF".U(32.W), x(62,31))}),
+    sewIs64 -> Mux(vxsat(0), "h7FFFFFFFFFFFFFFF".U(64.W), sumFinalNonFixP(126,63))
+  ))
+
+  io.vdSat    := vdSat
+  io.vxsat    := vxsat
 }
 
 class rndIncVecGenerator extends Module {
   val io = IO(new Bundle {
-    val sumFinal    = Input(UInt(152.W))
-    val vxrm        = Input(UInt(2.W))
-    val sewIs8      = Input(Bool())
-    val sewIs16     = Input(Bool())
-    val sewIs32     = Input(Bool())
-    val sewIs64     = Input(Bool())
+    val sumFinalNonFixP = Input(UInt(152.W))
+    val vxrm            = Input(UInt(2.W))
+    val sewIs8          = Input(Bool())
+    val sewIs16         = Input(Bool())
+    val sewIs32         = Input(Bool())
+    val sewIs64         = Input(Bool())
 
-    val rndIncVec   = Output(UInt(8.W))
+    val rndIncVec       = Output(UInt(8.W))
   })
 
   def rndIncGen(v_d: Bool, v_d_1: Bool, tail: UInt, vxrm: UInt): Bool = {
@@ -755,7 +756,7 @@ class rndIncVecGenerator extends Module {
               (vxrm === 3.U) -> (!v_d && Cat(v_d_1, tail) =/= 0.U) ))
   }
 
-  val sumFinal  = io.sumFinal
+  val sumFinalNonFixP  = io.sumFinalNonFixP
   val vxrm      = io.vxrm
   val sewIs64   = io.sewIs64
   val sewIs32   = io.sewIs32
@@ -764,10 +765,10 @@ class rndIncVecGenerator extends Module {
   
   val rndIncVec = Wire(UInt(8.W))
   rndIncVec := Mux1H(Seq(
-    sewIs8  -> Cat(UIntSplit(sumFinal, 19).reverse.map(x =>               rndIncGen(x(7),  x(6),  x(5, 0), vxrm))),
-    sewIs16 -> Cat(UIntSplit(sumFinal, 38).reverse.map(x => Cat(0.U(1.W), rndIncGen(x(15), x(14), x(13, 0), vxrm)))),
-    sewIs32 -> Cat(UIntSplit(sumFinal, 76).reverse.map(x => Cat(0.U(3.W), rndIncGen(x(31), x(30), x(29, 0), vxrm)))),
-    sewIs64 -> Cat(0.U(7.W), rndIncGen(sumFinal(63), sumFinal(62), sumFinal(61,0), vxrm))
+    sewIs8  -> Cat(UIntSplit(sumFinalNonFixP, 19).reverse.map(x =>         rndIncGen(x(7),  x(6),  x(5, 0), vxrm))),
+    sewIs16 -> Cat(UIntSplit(sumFinalNonFixP, 38).reverse.map(x => Fill(2, rndIncGen(x(15), x(14), x(13, 0), vxrm)))),
+    sewIs32 -> Cat(UIntSplit(sumFinalNonFixP, 76).reverse.map(x => Fill(4, rndIncGen(x(31), x(30), x(29, 0), vxrm)))),
+    sewIs64 -> Fill(8, rndIncGen(sumFinalNonFixP(63), sumFinalNonFixP(62), sumFinalNonFixP(61,0), vxrm))
   ))
 
   io.rndIncVec := rndIncVec
@@ -775,80 +776,57 @@ class rndIncVecGenerator extends Module {
 
 class vdRndGenerator extends Module {
   val io = IO(new Bundle {
-    val vdRndIn     = Input(UInt(64.W))
+    val sumFinalFixP    = Input(UInt(152.W))
+    val sewIs8          = Input(Bool())
+    val sewIs16         = Input(Bool())
+    val sewIs32         = Input(Bool())
+    val sewIs64         = Input(Bool())
+
+    val vdRndInc         = Output(UInt(64.W))
+  })
+  val sumFinalFixP    = io.sumFinalFixP
+  val sewIs64         = io.sewIs64
+  val sewIs32         = io.sewIs32
+  val sewIs16         = io.sewIs16
+  val sewIs8          = io.sewIs8
+
+  val vdRndInc    = Wire(UInt(64.W))
+
+  vdRndInc := Mux1H(Seq(
+    sewIs8  -> Cat(UIntSplit(sumFinalFixP, 19).reverse.map(x => x(14, 7))),
+    sewIs16 -> Cat(UIntSplit(sumFinalFixP, 38).reverse.map(x => x(30, 15))),
+    sewIs32 -> Cat(UIntSplit(sumFinalFixP, 76).reverse.map(x => x(62, 31))),
+    sewIs64 -> sumFinalFixP(126, 63)
+  ))
+  
+  io.vdRndInc    := vdRndInc
+}
+
+class vdFixPGenerator extends Module {
+  val io = IO(new Bundle {
+    val vdRndInc    = Input(UInt(64.W))
+    val vdSat       = Input(UInt(64.W))
     val rndIncVec   = Input(UInt(8.W))
     val sewIs8      = Input(Bool())
     val sewIs16     = Input(Bool())
     val sewIs32     = Input(Bool())
     val sewIs64     = Input(Bool())
 
-    val vdRndOut    = Output(Vec(8, UInt(8.W)))
-  })
-
-  val vdRndIn   = io.vdRndIn
-  val rndIncVec = io.rndIncVec
-  val sewIs64   = io.sewIs64
-  val sewIs32   = io.sewIs32
-  val sewIs16   = io.sewIs16
-  val sewIs8    = io.sewIs8
-
-  val adderChainCin = Wire(Vec(8, Bool()))
-  val vdRndOut      = Wire(Vec(8, UInt(8.W)))
-  val adderChain    = Seq.tabulate(8)(i => new fullAdder8b(vdRndIn(8*i+7, 8*i), adderChainCin(i)))
-
-  for (i <- 0 until 8) {
-    if (i == 0) {
-      adderChainCin(i) := rndIncVec(i)
-    }
-    else if(i % 4 == 0) {
-      adderChainCin(i) := Mux(sewIs64, adderChain(i-1).cout, rndIncVec(i))
-    }
-    else if(i % 2 == 0) {
-      adderChainCin(i) := Mux(sewIs64 | sewIs32, adderChain(i-1).cout, rndIncVec(i))
-    }
-    else {
-      adderChainCin(i) := Mux(sewIs8, rndIncVec(i), adderChain(i-1).cout)
-    }
-    vdRndOut(i) := adderChain(i).out
-  }
-  
-  io.vdRndOut := vdRndOut
-}
-
-class fullAdder8b(in: UInt, cin: Bool) {
-  val out  = Wire(UInt(8.W))
-  val cout = Wire(Bool())
-
-  out  := in + cin.asUInt
-  cout := (in === "b1111_1111".U) & cin
-}
-
-class vdFixPGenerator extends Module {
-  val io = IO(new Bundle {
-    val vdRndOut = Input(Vec(8, UInt(8.W)))
-    val vxsat    = Input(UInt(8.W))
-    val sewIs8   = Input(Bool())
-    val sewIs16  = Input(Bool())
-    val sewIs32  = Input(Bool())
-    val sewIs64  = Input(Bool())
-
     val vdFixP   = Output(UInt(64.W))
   })
 
-  val vdRndOut = io.vdRndOut
-  val vxsat    = io.vxsat
-  val sewIs64  = io.sewIs64
-  val sewIs32  = io.sewIs32
-  val sewIs16  = io.sewIs16
-  val sewIs8   = io.sewIs8
+  val vdRndInc    = io.vdRndInc
+  val vdSat       = io.vdSat
+  val rndIncVec   = io.rndIncVec
+  val sewIs64     = io.sewIs64
+  val sewIs32     = io.sewIs32
+  val sewIs16     = io.sewIs16
+  val sewIs8      = io.sewIs8
 
   val vdFixP = Wire(UInt(64.W))
-  vdFixP := Mux1H(Seq(
-    sewIs8  -> Cat(vdRndOut.reverse.zip(                                                               UIntSplit(vxsat, 1).map(x => x(0)).reverse).map{ case(rndData: UInt, satFlag: Bool) => Mux(satFlag, "h7F".U(8.W), rndData)}),
-    sewIs16 -> Cat(vdRndOut.reverse.grouped(2).map{ case Seq(a, b)       => Cat(a, b)      }.toSeq.zip(UIntSplit(vxsat, 2).map(x => x(0)).reverse).map{ case(rndData: UInt, satFlag: Bool) => Mux(satFlag, "h7FFF".U(16.W), rndData)}),
-    sewIs32 -> Cat(vdRndOut.reverse.grouped(4).map{ case Seq(a, b, c, d) => Cat(a, b, c, d)}.toSeq.zip(UIntSplit(vxsat, 4).map(x => x(0)).reverse).map{ case(rndData: UInt, satFlag: Bool) => Mux(satFlag, "h7FFF_FFFF".U(32.W), rndData)}),
-    sewIs64 -> Mux(vxsat(0), "h7FFF_FFFF_FFFF_FFFF".U(64.W), Cat(vdRndOut.reverse))
-  ))
+  vdFixP := Cat(UIntSplit(vdRndInc, 8).reverse.lazyZip(UIntSplit(vdSat, 8).reverse).lazyZip(UIntSplit(rndIncVec, 1).map(x => x(0)).reverse).map{ case(rndIncData, satData, rndIncFlag) => 
+                  Mux(rndIncFlag, rndIncData, satData)
+            })
 
   io.vdFixP := vdFixP
 }

@@ -12,68 +12,84 @@ import yunsuan.encoding.Opcode.VimacOpcode.isFixP
 
 class newVIMac64bStage2 extends Module {
   val io = IO(new Bundle {
-    val compStage1ResultsS1 = Input(Vec(11, UInt(152.W)))
-    val fireS1              = Input(Bool())
-    val highHalfS1          = Input(Bool())
-    val uopIdxS1            = Input(UInt(6.W))
-    val widenS1             = Input(Bool())
-    val vxrmS1              = Input(UInt(2.W))
-    val isFixPS1            = Input(Bool())
-    val sewIs8S1            = Input(Bool())
-    val sewIs16S1           = Input(Bool())
-    val sewIs32S1           = Input(Bool())
-    val sewIs64S1           = Input(Bool())
+    val compStage1ResultsS1    = Input(Vec(7, UInt(152.W)))
+    val wallaceLine34NonFixPS1 = Input(UInt(152.W))
+    val wallaceLine34FixPS1    = Input(UInt(152.W))
+    val highHalfS1             = Input(Bool())
+    val uopIdxS1               = Input(UInt(6.W))
+    val widenS1                = Input(Bool())
+    val vxrmS1                 = Input(UInt(2.W))
+    val isFixPS1               = Input(Bool())
+    val sewIs8S1               = Input(Bool())
+    val sewIs16S1              = Input(Bool())
+    val sewIs32S1              = Input(Bool())
+    val sewIs64S1              = Input(Bool())
 
-    val sumFinalS2 = Output(UInt(152.W))
-    val highHalfS2 = Output(Bool())
-    val uopIdxS2   = Output(UInt(6.W))
-    val widenS2    = Output(Bool())
-    val vxrmS2     = Output(UInt(2.W))
-    val isFixPS2   = Output(Bool())
-    val sewIs8S2   = Output(Bool())
-    val sewIs16S2  = Output(Bool())
-    val sewIs32S2  = Output(Bool())
-    val sewIs64S2  = Output(Bool())
+    val sumFinalNonFixPS2  = Output(UInt(152.W))
+    val sumFinalFixPS2     = Output(UInt(152.W))
+    val highHalfS2         = Output(Bool())
+    val uopIdxS2           = Output(UInt(6.W))
+    val widenS2            = Output(Bool())
+    val vxrmS2             = Output(UInt(2.W))
+    val isFixPS2           = Output(Bool())
+    val sewIs8S2           = Output(Bool())
+    val sewIs16S2          = Output(Bool())
+    val sewIs32S2          = Output(Bool())
+    val sewIs64S2          = Output(Bool())
   })
   
-  val compStage1ResultsS1 = io.compStage1ResultsS1
-  val fireS1              = io.fireS1
-  val highHalfS1          = io.highHalfS1
-  val uopIdxS1            = io.uopIdxS1
-  val widenS1             = io.widenS1
-  val vxrmS1              = io.vxrmS1
-  val isFixPS1            = io.isFixPS1
-  val sewIs8S1            = io.sewIs8S1
-  val sewIs16S1           = io.sewIs16S1
-  val sewIs32S1           = io.sewIs32S1
-  val sewIs64S1           = io.sewIs64S1
+  val compStage1ResultsS1    = io.compStage1ResultsS1
+  val wallaceLine34NonFixPS1 = io.wallaceLine34NonFixPS1
+  val wallaceLine34FixPS1    = io.wallaceLine34FixPS1
+  val highHalfS1             = io.highHalfS1
+  val uopIdxS1               = io.uopIdxS1
+  val widenS1                = io.widenS1
+  val vxrmS1                 = io.vxrmS1
+  val isFixPS1               = io.isFixPS1
+  val sewIs8S1               = io.sewIs8S1
+  val sewIs16S1              = io.sewIs16S1
+  val sewIs32S1              = io.sewIs32S1
+  val sewIs64S1              = io.sewIs64S1
 
-  val sum34to2  = Wire(UInt(152.W))
-  val cout34to2 = Wire(UInt(152.W))
+  val sum34to2NonFixP  = Wire(UInt(152.W))
+  val cout34to2NonFixP = Wire(UInt(152.W))
+  val sum34to2FixP     = Wire(UInt(152.W))
+  val cout34to2FixP    = Wire(UInt(152.W))
 
   val wallace3to2CompStage2 = Module(new wallace3to2CompressorStage2())
   wallace3to2CompStage2.io.compStage1Results := compStage1ResultsS1
-  sum34to2  := wallace3to2CompStage2.io.sum34to2
-  cout34to2 := wallace3to2CompStage2.io.cout34to2
+  wallace3to2CompStage2.io.wallaceLine34NonFixP := wallaceLine34NonFixPS1
+  wallace3to2CompStage2.io.wallaceLine34FixP    := wallaceLine34FixPS1
+  sum34to2NonFixP  := wallace3to2CompStage2.io.sum34to2NonFixP
+  cout34to2NonFixP := wallace3to2CompStage2.io.cout34to2NonFixP
+  sum34to2FixP     := wallace3to2CompStage2.io.sum34to2FixP
+  cout34to2FixP    := wallace3to2CompStage2.io.cout34to2FixP
 
   // 8.get final sum
-  val sumFinal  = Wire(UInt(152.W))
-  
-  val finalSumAdder = Module(new fullAdder152b())
-  finalSumAdder.io.sum34to2  := sum34to2
-  finalSumAdder.io.cout34to2 := cout34to2
-  sumFinal := finalSumAdder.io.sumFinal
+  val sumFinalNonFixP  = Wire(UInt(152.W))
+  val sumFinalFixP     = Wire(UInt(152.W))
 
-  io.sumFinalS2 := RegEnable(sumFinal, fireS1)
-  io.highHalfS2 := RegEnable(highHalfS1, fireS1)
-  io.uopIdxS2   := RegEnable(uopIdxS1, fireS1)
-  io.widenS2    := RegEnable(widenS1, fireS1)
-  io.vxrmS2     := RegEnable(vxrmS1, fireS1)
-  io.isFixPS2   := RegEnable(isFixPS1, fireS1)
-  io.sewIs8S2   := RegEnable(sewIs8S1, fireS1)
-  io.sewIs16S2  := RegEnable(sewIs16S1, fireS1)
-  io.sewIs32S2  := RegEnable(sewIs32S1, fireS1)
-  io.sewIs64S2  := RegEnable(sewIs64S1, fireS1)
+  val finalSumAdderNonFixP = Module(new fullAdder152b())
+  finalSumAdderNonFixP.io.sum34to2  := sum34to2NonFixP
+  finalSumAdderNonFixP.io.cout34to2 := cout34to2NonFixP
+  sumFinalNonFixP                   := finalSumAdderNonFixP.io.sumFinal
+
+  val finalSumAdderFixP = Module(new fullAdder152b())
+  finalSumAdderFixP.io.sum34to2  := sum34to2FixP
+  finalSumAdderFixP.io.cout34to2 := cout34to2FixP
+  sumFinalFixP                   := finalSumAdderFixP.io.sumFinal
+
+  io.sumFinalFixPS2     := sumFinalFixP
+  io.sumFinalNonFixPS2  := sumFinalNonFixP
+  io.highHalfS2         := highHalfS1
+  io.uopIdxS2           := uopIdxS1
+  io.widenS2            := widenS1
+  io.vxrmS2             := vxrmS1
+  io.isFixPS2           := isFixPS1
+  io.sewIs8S2           := sewIs8S1
+  io.sewIs16S2          := sewIs16S1
+  io.sewIs32S2          := sewIs32S1
+  io.sewIs64S2          := sewIs64S1
 }
 
 object newVIMac64bStage2 extends App {
