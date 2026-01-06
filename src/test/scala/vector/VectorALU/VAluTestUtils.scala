@@ -39,6 +39,8 @@ case class IMac64bCtrlBundle(vdType: Int = 7,
                           isSub: Boolean = false,
                           widen: Boolean = false,
                           isFixP: Boolean = false,
+                          isComp: Boolean = false,
+                          isConj: Boolean = false,
                           uopIdx: Int = 0,
 )
 
@@ -112,6 +114,8 @@ trait BundleGenHelper {
       _.isSub -> c.isSub.B,
       _.widen -> c.widen.B,
       _.isFixP -> c.isFixP.B,
+      _.isComp -> c.isComp.B,
+      _.isConj -> c.isConj.B,
     )
   }
   // Temp

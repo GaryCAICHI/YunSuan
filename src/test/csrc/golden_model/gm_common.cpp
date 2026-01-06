@@ -444,8 +444,44 @@ ElementInput VPUGoldenModel::select_element(VecInput input, int idx) {
       element.src2 = input.is_frs1 ? (uint64_t)input64->src2[0] : (uint64_t)input32->src2[idx];
       element.src3 = (uint64_t)input32->src3[idx];
     }
-  }
-  else {
+  } else if (input.fuType == VIntegerMAC) {
+    switch (sew) {
+      case 0:
+        element.src1 = (uint64_t)input8->src1[idx];
+        element.src2 = (uint64_t)input8->src2[idx];
+        element.src3 = (uint64_t)input8->src3[idx];
+        break;
+      case 1:
+        if (input.fuOpType == VSCMUL || input.fuOpType == VSCMULCJ || input.fuOpType == VSCMACC || 
+          input.fuOpType == VSCMACCCJ) {
+          if (idx % 2 == 0) {
+            element.isRe = true;
+          } else {
+            element.isRe = false;
+          }
+          element.src1 = (uint64_t)input32->src1[idx/2];
+          element.src2 = (uint64_t)input32->src2[idx/2];
+        } else {
+          element.src1 = (uint64_t)input16->src1[idx];
+          element.src2 = (uint64_t)input16->src2[idx];
+        }
+        element.src3 = (uint64_t)input16->src3[idx];
+        break;
+      case 2:
+        element.src1 = (uint64_t)input32->src1[idx];
+        element.src2 = (uint64_t)input32->src2[idx];
+        element.src3 = (uint64_t)input32->src3[idx];
+        break;
+      case 3:
+        element.src1 = (uint64_t)input64->src1[idx];
+        element.src2 = (uint64_t)input64->src2[idx];
+        element.src3 = (uint64_t)input64->src3[idx];
+        break;
+      default:
+        printf("VPU Golden Modle, bad sew %d\n", input.sew);
+        exit(1);
+    }
+  } else {
     switch (sew) {
       case 0:
         element.src1 = (uint64_t)input8->src1[idx];

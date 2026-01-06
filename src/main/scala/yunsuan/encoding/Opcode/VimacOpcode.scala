@@ -4,13 +4,19 @@ import chisel3._
 
 object VimacOpcode {
   def width = 3
-  def vmul    = "b000".U(width.W)
-  def vmulh   = "b001".U(width.W)
-  def vmacc   = "b010".U(width.W)
-  def vnmsac  = "b011".U(width.W)
-  def vmadd   = "b100".U(width.W)
-  def vnmsub  = "b101".U(width.W)
-  def vsmul   = "b110".U(width.W)
+  def vmul    = "b0000".U(width.W)
+  def vmulh   = "b0001".U(width.W)
+  def vmacc   = "b0010".U(width.W)
+  def vnmsac  = "b0011".U(width.W)
+  def vmadd   = "b0100".U(width.W)
+  def vnmsub  = "b0101".U(width.W)
+  def vsmul   = "b0110".U(width.W)
+
+  // zvw
+  def vscmul    = "b0111".U(width.W)
+  def vscmulcj  = "b1000".U(width.W)
+  def vscmacc   = "b1001".U(width.W)
+  def vscmacccj = "b1010".U(width.W)
 
   def highHalf(opcode: UInt) = Seq(vmulh).map(_ === opcode).reduce(_ || _)
 

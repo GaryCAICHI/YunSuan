@@ -389,7 +389,7 @@ class SimTop() extends VPUTestModule {
   val vimac = Module(new VIMac)
   vimac.io.in.valid := true.B
 
-  vimac.io.in.bits.opcode.op := Cat(0.U(3.W), opcode(2,0))
+  vimac.io.in.bits.opcode.op := Cat(0.U(2.W), opcode(3,0))
   vimac.io.in.bits.info.vm := vm
   vimac.io.in.bits.info.ma := ma
   vimac.io.in.bits.info.ta := ta
@@ -398,9 +398,9 @@ class SimTop() extends VPUTestModule {
   vimac.io.in.bits.info.vstart := vstart
   vimac.io.in.bits.info.uopIdx := uop_idx
   vimac.io.in.bits.info.vxrm := in.rm_s
-  vimac.io.in.bits.srcType(0) := Cat(0.U(1.W), opcode(6), sew)  // vs2
-  vimac.io.in.bits.srcType(1) := Cat(0.U(1.W), opcode(5), sew)  // vs1
-  vimac.io.in.bits.vdType := Cat(0.U(1.W), opcode(4), Mux(widen, sew + 1.U(1.W), sew))
+  vimac.io.in.bits.srcType(0) := Cat(0.U(1.W), opcode(7), sew)  // vs2
+  vimac.io.in.bits.srcType(1) := Cat(0.U(1.W), opcode(6), sew)  // vs1
+  vimac.io.in.bits.vdType := Cat(0.U(1.W), opcode(5), Mux(widen, sew + 1.U(1.W), sew))
   vimac.io.in.bits.vs1 := Cat(in.src(0)(1), in.src(0)(0))
   vimac.io.in.bits.vs2 := Cat(in.src(1)(1), in.src(1)(0))
   vimac.io.in.bits.old_vd := Cat(in.src(2)(1), in.src(2)(0))

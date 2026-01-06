@@ -23,6 +23,8 @@ class VIMac64bInput extends Bundle {
   val isSub = Bool()
   val widen = Bool()
   val isFixP = Bool()
+  val isComp = Bool()
+  val isConj = Bool()
 }
 class VIMac64bOutput extends Bundle {
   val vd = UInt(64.W)  // !!!!!!! 64
@@ -48,6 +50,8 @@ class VIMac64bWrapper extends Module {
   vIMac.io.isSub := io.in.bits.isSub
   vIMac.io.widen := io.in.bits.widen
   vIMac.io.isFixP := io.in.bits.isFixP
+  vIMac.io.isComp := io.in.bits.isComp
+  vIMac.io.isConj := io.in.bits.isConj
 
   io.out.bits.vd := vIMac.io.vd
   io.out.bits.vxsat := vIMac.io.vxsat

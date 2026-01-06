@@ -84,11 +84,10 @@ class VGMIntegerALU : public VPUGoldenModel {
 };
 
 class VGMIntegerMAC : public VPUGoldenModel {
-  public:
-    virtual ElementOutput calculation_e8(ElementInput input);
-    virtual ElementOutput calculation_e16(ElementInput input);
-    virtual ElementOutput calculation_e32(ElementInput input);
-    virtual ElementOutput calculation_e64(ElementInput input);
+  virtual ElementOutput calculation_e8(ElementInput input);
+  virtual ElementOutput calculation_e16(ElementInput input);
+  virtual ElementOutput calculation_e32(ElementInput input);
+  virtual ElementOutput calculation_e64(ElementInput input);
 };
 
 class VGMPermutation : public VPUGoldenModel {

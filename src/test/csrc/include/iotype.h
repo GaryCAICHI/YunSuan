@@ -116,6 +116,7 @@ struct ElementInput {
   uint8_t fuOpType;
   bool src_widen;
   bool widen;
+  bool isRe = false;
   uint8_t uop_idx;
   uint8_t rm;
   uint8_t rm_s;

@@ -363,25 +363,30 @@ extern "C"{
   #define I2FCVT_64_OPTYPES {FCVT_H_WU,FCVT_H_W,FCVT_H_LU,FCVT_H_L,FCVT_S_WU,FCVT_S_W,FCVT_S_LU,FCVT_S_L,FCVT_D_WU,FCVT_D_W,FCVT_D_LU,FCVT_D_L}
 
   //VIMAC
-  #define VIMAC_NUM 16
-  #define VMUL             (binstoi("01100000"))
-  #define VWMUL            (binstoi("01101000"))
-  #define VWMULU           (binstoi("00001000"))
-  #define VWMULSU          (binstoi("01001000"))
-  #define VMULH            (binstoi("01100001"))
+  #define VIMAC_NUM 20
+  #define VMUL             (binstoi("11000000"))
+  #define VWMUL            (binstoi("11010000"))
+  #define VWMULU           (binstoi("00010000"))
+  #define VWMULSU          (binstoi("10010000"))
+  #define VMULH            (binstoi("11000001"))
   #define VMULHU           (binstoi("00000001"))
-  #define VMULHSU          (binstoi("01000001"))
-  #define VMACC            (binstoi("01110010"))
-  #define VWMACCU          (binstoi("00001010"))
-  #define VWMACC           (binstoi("01111010"))
-  #define VWMACCSU         (binstoi("00111010"))
-  #define VWMACCUS         (binstoi("01011010"))
-  #define VNMSAC           (binstoi("01110011"))
-  #define VMADD            (binstoi("01110100"))
-  #define VNMSUB           (binstoi("01110101"))
-  #define VSMUL            (binstoi("01100110"))
+  #define VMULHSU          (binstoi("10000001"))
+  #define VMACC            (binstoi("11100010"))
+  #define VWMACCU          (binstoi("00010010"))
+  #define VWMACC           (binstoi("11110010"))
+  #define VWMACCSU         (binstoi("01110010"))
+  #define VWMACCUS         (binstoi("10110010"))
+  #define VNMSAC           (binstoi("11100011"))
+  #define VMADD            (binstoi("11100100"))
+  #define VNMSUB           (binstoi("11100101"))
+  #define VSMUL            (binstoi("11000110"))
+  //Complex Insts
+  #define VSCMUL           (binstoi("11000111"))
+  #define VSCMULCJ         (binstoi("11001000"))
+  #define VSCMACC          (binstoi("11101001"))
+  #define VSCMACCCJ        (binstoi("11101010"))
 
-  #define VIMAC_ALL_OPTYPES {VMUL,VWMUL,VWMULU,VWMULSU,VMULH,VMULHU,VMULHSU,VMACC,VWMACCU,VWMACC,VWMACCSU,VWMACCUS,VNMSAC,VMADD,VNMSUB,VSMUL}
+  #define VIMAC_ALL_OPTYPES {VMUL,VWMUL,VWMULU,VWMULSU,VMULH,VMULHU,VMULHSU,VMACC,VWMACCU,VWMACC,VWMACCSU,VWMACCUS,VNMSAC,VMADD,VNMSUB,VSMUL,VSCMUL,VSCMULCJ,VSCMACC,VSCMACCCJ}
 
 // pre-compile stoi
 constexpr uint8_t binstoi(const char str[]) {

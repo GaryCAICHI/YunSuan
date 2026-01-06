@@ -20,6 +20,8 @@ class VIMac64b extends Module {
     val isSub = Input(Bool())
     val widen = Input(Bool())
     val isFixP = Input(Bool())
+    val isComp = Input(Bool())
+    val isConj = Input(Bool())
 
     val vd = Output(UInt(64.W))
     val vxsat = Output(UInt(8.W))
@@ -45,6 +47,8 @@ class VIMac64b extends Module {
   val isMacc   = io.isMacc
   val widen    = io.widen
   val isFixP   = io.isFixP
+  val isComp   = io.isComp
+  val isConj   = io.isConj
   val info     = io.info
 
   val fireS1    = GatedValidRegNext(fire)
@@ -61,6 +65,8 @@ class VIMac64b extends Module {
   stage1.io.in.isSub     := isSub
   stage1.io.in.widen     := widen
   stage1.io.in.isFixP    := isFixP
+  stage1.io.in.isComp    := isComp
+  stage1.io.in.isConj    := isConj
   val stage1Out = RegEnable(stage1.io.out, fire)
 
   val stage2 = Module(new VIMac64bStage2())

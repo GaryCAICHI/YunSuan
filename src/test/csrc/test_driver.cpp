@@ -30,7 +30,7 @@ void TestDriver::set_test_type() {
   test_type.pick_fuType = true;
   test_type.pick_fuOpType = false;
   test_type.fuType = VIntegerMAC;
-  test_type.fuOpType = VSMUL;
+  test_type.fuOpType = VSCMUL;
   printf("Set Test Type Res: fuType:%d fuOpType:%d\n", test_type.fuType, test_type.fuOpType);
 }
 
@@ -68,7 +68,7 @@ uint8_t TestDriver::gen_random_optype() {
     case VIntegerALU: break;
     case VIntegerMAC:{
       uint8_t vmac_all_optype[VIMAC_NUM] = VIMAC_ALL_OPTYPES;
-      return vmac_all_optype[rand() % VIMAC_NUM];
+      return vmac_all_optype[(rand() % 4) + 16];
       break;
     }
     case VPermutation: { //TODO: add other type
@@ -145,6 +145,9 @@ uint8_t TestDriver::gen_random_sew() {
       if (input.fuOpType == VWMUL || input.fuOpType == VWMULU || input.fuOpType == VWMULSU ||
           input.fuOpType == VWMACCU || input.fuOpType == VWMACC || input.fuOpType == VWMACCSU || input.fuOpType == VWMACCUS) {
         return rand()%3;
+      } else if (input.fuOpType == VSCMUL || input.fuOpType == VSCMULCJ || input.fuOpType == VSCMACC || 
+          input.fuOpType == VSCMACCCJ) {
+        return 1;
       } else {
         return rand()%4;
       }

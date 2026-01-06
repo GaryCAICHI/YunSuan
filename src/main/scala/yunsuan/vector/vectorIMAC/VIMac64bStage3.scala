@@ -13,6 +13,7 @@ class VIMac64bStage3Input extends Bundle {
   val widenS2           = Bool()
   val vxrmS2            = UInt(2.W)
   val isFixPS2          = Bool()
+  val isCompS2          = Bool()
   val sewIs8S2          = Bool()
   val sewIs16S2         = Bool()
   val sewIs32S2         = Bool()
@@ -37,6 +38,7 @@ class VIMac64bStage3 extends Module {
   val widenS2           = io.in.widenS2
   val vxrmS2            = io.in.vxrmS2
   val isFixPS2          = io.in.isFixPS2
+  val isCompS2          = io.in.isCompS2
   val sewIs8S2          = io.in.sewIs8S2
   val sewIs16S2         = io.in.sewIs16S2
   val sewIs32S2         = io.in.sewIs32S2
@@ -59,16 +61,25 @@ class VIMac64bStage3 extends Module {
   // ----------- fixed-point instruction result handling  -----------
   // 10.generate vxsat bits and saturated vd
   val vdSat = Wire(UInt(64.W))
-  val vxsat = Wire(UInt(8.W))
+  val vdCompInc = Wire(UInt(64.W))
+  val vdCompNonInc = Wire(UInt(64.W))
+  val vxsatNonComp = Wire(UInt(8.W))
+  val vxsatCompInc = Wire(UInt(8.W))
+  val vxsatCompNonInc = Wire(UInt(8.W))
 
   val vxsatGen = Module(new vxsatGenerator())
   vxsatGen.io.sumFinalNonFixP := sumFinalNonFixPS2
+  vxsatGen.io.sumFinalFixP    := sumFinalFixPS2
   vxsatGen.io.sewIs8          := sewIs8S2
   vxsatGen.io.sewIs16         := sewIs16S2
   vxsatGen.io.sewIs32         := sewIs32S2
   vxsatGen.io.sewIs64         := sewIs64S2
-  vdSat := vxsatGen.io.vdSat
-  vxsat := vxsatGen.io.vxsat
+  vdSat                       := vxsatGen.io.vdSat
+  vdCompInc                   := vxsatGen.io.vdCompInc
+  vdCompNonInc                := vxsatGen.io.vdCompNonInc
+  vxsatNonComp                := vxsatGen.io.vxsatNonComp
+  vxsatCompInc                := vxsatGen.io.vxsatCompInc
+  vxsatCompNonInc             := vxsatGen.io.vxsatCompNonInc
 
   // 11.generate rounding increment bits
   val rndIncVec = Wire(UInt(8.W))
@@ -95,16 +106,24 @@ class VIMac64bStage3 extends Module {
 
   // 14.choose between rounding increment vd and saturated vd and generate final fixed-point vd
   val vdFixP = Wire(UInt(64.W))
+  val vxsat  = Wire(UInt(8.W))
   
   val vdFixPGen = Module(new vdFixPGenerator())
-  vdFixPGen.io.vdRndInc    := vdRndInc
-  vdFixPGen.io.vdSat       := vdSat
-  vdFixPGen.io.rndIncVec   := rndIncVec
-  vdFixPGen.io.sewIs8      := sewIs8S2
-  vdFixPGen.io.sewIs16     := sewIs16S2
-  vdFixPGen.io.sewIs32     := sewIs32S2
-  vdFixPGen.io.sewIs64     := sewIs64S2
+  vdFixPGen.io.vdRndInc        := vdRndInc
+  vdFixPGen.io.vdSat           := vdSat
+  vdFixPGen.io.vdCompInc       := vdCompInc
+  vdFixPGen.io.vdCompNonInc    := vdCompNonInc
+  vdFixPGen.io.vxsatNonComp    := vxsatNonComp
+  vdFixPGen.io.vxsatCompInc    := vxsatCompInc
+  vdFixPGen.io.vxsatCompNonInc := vxsatCompNonInc
+  vdFixPGen.io.rndIncVec       := rndIncVec
+  vdFixPGen.io.isComp          := isCompS2
+  vdFixPGen.io.sewIs8          := sewIs8S2
+  vdFixPGen.io.sewIs16         := sewIs16S2
+  vdFixPGen.io.sewIs32         := sewIs32S2
+  vdFixPGen.io.sewIs64         := sewIs64S2
   vdFixP := vdFixPGen.io.vdFixP
+  vxsat  := vdFixPGen.io.vxsat
 
   // 15.generate final output
   val outputMux = Module(new outputSelect())
@@ -152,25 +171,41 @@ class vdNonFixPGenerator extends Module {
 class vxsatGenerator extends Module {
   val io = IO(new Bundle {
     val sumFinalNonFixP = Input(UInt(152.W))
+    val sumFinalFixP    = Input(UInt(152.W))
     val sewIs8          = Input(Bool())
     val sewIs16         = Input(Bool())
     val sewIs32         = Input(Bool())
     val sewIs64         = Input(Bool())
 
     val vdSat           = Output(UInt(64.W))
-    val vxsat           = Output(UInt(8.W))
+    val vdCompInc       = Output(UInt(64.W))
+    val vdCompNonInc    = Output(UInt(64.W))
+    val vxsatNonComp    = Output(UInt(8.W))
+    val vxsatCompInc    = Output(UInt(8.W))
+    val vxsatCompNonInc = Output(UInt(8.W))
   })
 
   val sumFinalNonFixP = io.sumFinalNonFixP
+  val sumFinalFixP    = io.sumFinalFixP
   val sewIs64  = io.sewIs64
   val sewIs32  = io.sewIs32
   val sewIs16  = io.sewIs16
   val sewIs8   = io.sewIs8
   
-  val vxsat    = Wire(UInt(8.W))
-  val vdSat    = Wire(UInt(64.W))
+  val vdSat           = Wire(UInt(64.W))
+  val vdCompInc       = Wire(UInt(64.W))
+  val vdCompNonInc    = Wire(UInt(64.W))
+
+  val vxsatNonComp    = Wire(UInt(8.W))
+  val vxsatCompInc    = Wire(UInt(8.W))
+  val vxsatCompNonInc = Wire(UInt(8.W))
   
-  vxsat := Mux1H(Seq(
+  val compOFInc       = Wire(UInt(8.W))
+  val compUFInc       = Wire(UInt(8.W))
+  val compOFNonInc    = Wire(UInt(8.W))
+  val compUFNonInc    = Wire(UInt(8.W))
+  
+  vxsatNonComp := Mux1H(Seq(
     sewIs8  -> Cat(UIntSplit(sumFinalNonFixP, 19).reverse.map(x => x(15,14) === 1.U(2.W))),
     sewIs16 -> Cat(UIntSplit(sumFinalNonFixP, 38).reverse.map(x => Fill(2, x(31,30) === 1.U(2.W)))),
     sewIs32 -> Cat(UIntSplit(sumFinalNonFixP, 76).reverse.map(x => Fill(4, x(63,62) === 1.U(2.W)))),
@@ -178,14 +213,34 @@ class vxsatGenerator extends Module {
   ))
 
   vdSat := Mux1H(Seq(
-    sewIs8  -> Cat(UIntSplit(sumFinalNonFixP, 19).reverse.zip(UIntSplit(vxsat, 1).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7F".U(8.W),        x(14,7))}),
-    sewIs16 -> Cat(UIntSplit(sumFinalNonFixP, 38).reverse.zip(UIntSplit(vxsat, 2).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7FFF".U(16.W),     x(30,15))}),
-    sewIs32 -> Cat(UIntSplit(sumFinalNonFixP, 76).reverse.zip(UIntSplit(vxsat, 4).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7FFFFFFF".U(32.W), x(62,31))}),
-    sewIs64 -> Mux(vxsat(0), "h7FFFFFFFFFFFFFFF".U(64.W), sumFinalNonFixP(126,63))
+    sewIs8  -> Cat(UIntSplit(sumFinalNonFixP, 19).reverse.zip(UIntSplit(vxsatNonComp, 1).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7F".U(8.W),        x(14,7))}),
+    sewIs16 -> Cat(UIntSplit(sumFinalNonFixP, 38).reverse.zip(UIntSplit(vxsatNonComp, 2).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7FFF".U(16.W),     x(30,15))}),
+    sewIs32 -> Cat(UIntSplit(sumFinalNonFixP, 76).reverse.zip(UIntSplit(vxsatNonComp, 4).map(x => x(0)).reverse).map{ case(x, vxsat) => Mux(vxsat, "h7FFFFFFF".U(32.W), x(62,31))}),
+    sewIs64 -> Mux(vxsatNonComp(0), "h7FFFFFFFFFFFFFFF".U(64.W), sumFinalNonFixP(126,63))
   ))
 
-  io.vdSat    := vdSat
-  io.vxsat    := vxsat
+  compOFInc    := Cat(UIntSplit(sumFinalFixP,    38).reverse.map(x => Fill(2, ~(x(32)) &  (x(31) | x(30)))))
+  compUFInc    := Cat(UIntSplit(sumFinalFixP,    38).reverse.map(x => Fill(2,   x(32)  & ~(x(31) & x(30)))))
+  compOFNonInc := Cat(UIntSplit(sumFinalNonFixP, 38).reverse.map(x => Fill(2, ~(x(32)) &  (x(31) | x(30)))))
+  compUFNonInc := Cat(UIntSplit(sumFinalNonFixP, 38).reverse.map(x => Fill(2,   x(32)  & ~(x(31) & x(30)))))
+
+  vxsatCompInc    := compOFInc    | compUFInc
+  vxsatCompNonInc := compOFNonInc | compUFNonInc
+
+  vdCompInc    := Cat(UIntSplit(sumFinalFixP, 38).reverse.lazyZip(UIntSplit(compOFInc, 2).map(x => x(0)).reverse).lazyZip(UIntSplit(compUFInc, 2).map(x => x(0)).reverse).map{
+    case(compIncData, oFFlag, uFFlag) => Mux(oFFlag, "h7fff".U(16.W), Mux(uFFlag, "h8000".U(16.W), compIncData(30,15)))
+  })
+
+  vdCompNonInc := Cat(UIntSplit(sumFinalNonFixP, 38).reverse.lazyZip(UIntSplit(compOFNonInc, 2).map(x => x(0)).reverse).lazyZip(UIntSplit(compUFNonInc, 2).map(x => x(0)).reverse).map{
+    case(compNonIncData, oFFlag, uFFlag) => Mux(oFFlag, "h7fff".U(16.W), Mux(uFFlag, "h8000".U(16.W), compNonIncData(30,15)))
+  })
+
+  io.vdSat           := vdSat
+  io.vdCompInc       := vdCompInc
+  io.vdCompNonInc    := vdCompNonInc
+  io.vxsatNonComp    := vxsatNonComp
+  io.vxsatCompInc    := vxsatCompInc
+  io.vxsatCompNonInc := vxsatCompNonInc
 }
 
 class rndIncVecGenerator extends Module {
@@ -250,36 +305,66 @@ class vdRndGenerator extends Module {
     sewIs64 -> sumFinalFixP(126, 63)
   ))
   
-  io.vdRndInc    := vdRndInc
+  io.vdRndInc := vdRndInc
 }
 
 class vdFixPGenerator extends Module {
   val io = IO(new Bundle {
-    val vdRndInc    = Input(UInt(64.W))
-    val vdSat       = Input(UInt(64.W))
-    val rndIncVec   = Input(UInt(8.W))
-    val sewIs8      = Input(Bool())
-    val sewIs16     = Input(Bool())
-    val sewIs32     = Input(Bool())
-    val sewIs64     = Input(Bool())
+    val vdRndInc        = Input(UInt(64.W))
+    val vdSat           = Input(UInt(64.W))
+    val vdCompInc       = Input(UInt(64.W))
+    val vdCompNonInc    = Input(UInt(64.W))
+    val vxsatNonComp    = Input(UInt(8.W))
+    val vxsatCompInc    = Input(UInt(8.W))
+    val vxsatCompNonInc = Input(UInt(8.W))
+    val rndIncVec       = Input(UInt(8.W))
+    val isComp          = Input(Bool())
+    val sewIs8          = Input(Bool())
+    val sewIs16         = Input(Bool())
+    val sewIs32         = Input(Bool())
+    val sewIs64         = Input(Bool())
 
     val vdFixP   = Output(UInt(64.W))
+    val vxsat    = Output(UInt(8.W))
   })
 
-  val vdRndInc    = io.vdRndInc
-  val vdSat       = io.vdSat
-  val rndIncVec   = io.rndIncVec
-  val sewIs64     = io.sewIs64
-  val sewIs32     = io.sewIs32
-  val sewIs16     = io.sewIs16
-  val sewIs8      = io.sewIs8
+  val vdRndInc        = io.vdRndInc
+  val vdSat           = io.vdSat
+  val vdCompInc       = io.vdCompInc
+  val vdCompNonInc    = io.vdCompNonInc
+  val vxsatNonComp    = io.vxsatNonComp
+  val vxsatCompInc    = io.vxsatCompInc
+  val vxsatCompNonInc = io.vxsatCompNonInc
+  val rndIncVec       = io.rndIncVec
+  val isComp          = io.isComp
+  val sewIs64         = io.sewIs64
+  val sewIs32         = io.sewIs32
+  val sewIs16         = io.sewIs16
+  val sewIs8          = io.sewIs8
 
-  val vdFixP = Wire(UInt(64.W))
-  vdFixP := Cat(UIntSplit(vdRndInc, 8).reverse.lazyZip(UIntSplit(vdSat, 8).reverse).lazyZip(UIntSplit(rndIncVec, 1).map(x => x(0)).reverse).map{ case(rndIncData, satData, rndIncFlag) => 
+  val vdFixPNonComp = Wire(UInt(64.W))
+  val vdFixPComp    = Wire(UInt(64.W))
+  val vdFixP        = Wire(UInt(64.W))
+  val vxsatComp     = Wire(UInt(8.W))
+  val vxsat         = Wire(UInt(8.W))
+
+  vdFixPNonComp := Cat(UIntSplit(vdRndInc, 8).reverse.lazyZip(UIntSplit(vdSat, 8).reverse).lazyZip(UIntSplit(rndIncVec, 1).map(x => x(0)).reverse).map{ case(rndIncData, satData, rndIncFlag) => 
                   Mux(rndIncFlag, rndIncData, satData)
-            })
+  })
+  
+  vdFixPComp := Cat(UIntSplit(vdCompInc, 16).reverse.lazyZip(UIntSplit(vdCompNonInc, 16).reverse).lazyZip(UIntSplit(rndIncVec, 2).map(x => x(0)).reverse).map{ case(compIncData, compNonIncData, rndIncFlag) =>
+              Mux(rndIncFlag, compIncData, compNonIncData)
+  })
+
+  vxsatComp := Cat(UIntSplit(rndIncVec, 2).map(x => x(0)).reverse.lazyZip(UIntSplit(vxsatCompInc, 2).reverse).lazyZip(UIntSplit(vxsatCompNonInc, 2).reverse).map{ case(rndIncFlag, vxsatCompInc, vxsatCompNonInc) =>
+             Mux(rndIncFlag, vxsatCompInc, vxsatCompNonInc)
+  })
+  
+  vdFixP := Mux(isComp, vdFixPComp, vdFixPNonComp)
+  vxsat := Mux(isComp, vxsatComp, vxsatNonComp)
 
   io.vdFixP := vdFixP
+  io.vxsat  := vxsat
 }
 
 class outputSelect extends Module {

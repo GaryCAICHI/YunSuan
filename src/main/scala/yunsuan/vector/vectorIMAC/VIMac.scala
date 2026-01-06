@@ -37,6 +37,8 @@ class VIMac extends Module {
     vIMac64bs(i).io.isSub := opcode.isSub
     vIMac64bs(i).io.widen := widen
     vIMac64bs(i).io.isFixP := opcode.isFixP
+    vIMac64bs(i).io.isComp := opcode.isComp
+    vIMac64bs(i).io.isConj := opcode.isConj
     vIMac64bs(i).io.vs1 := Mux(widen, Cat(UIntSplit(vs1, 32)(i+2), UIntSplit(vs1, 32)(i)),
                                UIntSplit(vs1, 64)(i))
     vIMac64bs(i).io.vs2 := Mux(opcode.overWriteMultiplicand, UIntSplit(oldVd, 64)(i),

@@ -17,10 +17,14 @@ class VIMac64bStage1Input extends Bundle {
   val isSub    = Bool()
   val widen    = Bool()
   val isFixP   = Bool()
+  val isComp   = Bool()
+  val isConj   = Bool()
 }
 
 class VIMac64bStage1Output extends Bundle {
   val compStage1ResultsS1    = Vec(7, UInt(152.W))
+  val complexSumVecS1        = Vec(4, UInt(33.W))
+  val complexCoutVecS1       = Vec(4, UInt(33.W))
   val wallaceLine34NonFixPS1 = UInt(152.W)
   val wallaceLine34FixPS1    = UInt(152.W)
   val highHalfS1             = Bool()
@@ -28,6 +32,7 @@ class VIMac64bStage1Output extends Bundle {
   val widenS1                = Bool()
   val vxrmS1                 = UInt(2.W)
   val isFixPS1               = Bool()
+  val isCompS1               = Bool()
   val sewIs8S1               = Bool()
   val sewIs16S1              = Bool()
   val sewIs32S1              = Bool()
@@ -59,88 +64,199 @@ class VIMac64bStage1 extends Module {
   val isMacc   = io.in.isMacc
   val widen    = io.in.widen
   val isFixP   = io.in.isFixP
+  val isComp   = io.in.isComp
+  val isConj   = io.in.isConj
   val uopIdx   = io.in.info.uopIdx
   val vxrm     = io.in.info.vxrm
 
-  // 1.vs1 booth encoding
-  val vs1BoothPos  = Wire(Vec(32, Bool()))
-  val vs1BoothNeg  = Wire(Vec(32, Bool()))
-  val vs1BoothDoZ  = Wire(Vec(32, Bool()))
-  val vs1BoothNonZ = Wire(Vec(32, Bool()))
+  val vs1Set1 = Wire(UInt(64.W))
+  val vs2Set1 = Wire(UInt(64.W))
+  val vs1Set2 = Wire(UInt(64.W))
+  val vs2Set2 = Wire(UInt(64.W))
 
-  val vs1BoothEncode = Module(new vs1Booth())
-  vs1BoothEncode.io.vs1     := vs1
-  vs1BoothEncode.io.sewIs8  := sewIs8
-  vs1BoothEncode.io.sewIs16 := sewIs16
-  vs1BoothEncode.io.sewIs32 := sewIs32
-  vs1BoothEncode.io.sewIs64 := sewIs64
-  vs1BoothPos  := vs1BoothEncode.io.positive
-  vs1BoothNeg  := vs1BoothEncode.io.negative
-  vs1BoothDoZ  := vs1BoothEncode.io.doubleOrZero
-  vs1BoothNonZ := vs1BoothEncode.io.nonZero
+  dontTouch(vs2Set2)
+
+  // 1.source slicing
+  vs1Set1 := Mux(isComp, Cat(Fill(2, vs1(47,32)), Fill(2, vs1(15,0))), vs1)
+  vs2Set1 := vs2
+  vs1Set2 := Mux(isComp, Cat(Fill(2, vs1(63,48)) ,Fill(2, vs1(31,16))), 0.U(64.W))
+  vs2Set2 := Mux(isComp, Cat(vs2(47,32), vs2(63,48), vs2(15,0), vs2(31,16)), 0.U(64.W))
+
+  // 2.vs1 booth encoding
+  val vs1Set1BoothPos  = Wire(Vec(32, Bool()))
+  val vs1Set1BoothNeg  = Wire(Vec(32, Bool()))
+  val vs1Set1BoothDoZ  = Wire(Vec(32, Bool()))
+  val vs1Set1BoothNonZ = Wire(Vec(32, Bool()))
+
+  val vs1Set2BoothPos  = Wire(Vec(32, Bool()))
+  val vs1Set2BoothNeg  = Wire(Vec(32, Bool()))
+  val vs1Set2BoothDoZ  = Wire(Vec(32, Bool()))
+  val vs1Set2BoothNonZ = Wire(Vec(32, Bool()))
+
+  val vs1Set1BoothEncode = Module(new vs1Booth())
+  vs1Set1BoothEncode.io.vs1     := vs1Set1
+  vs1Set1BoothEncode.io.sewIs8  := sewIs8
+  vs1Set1BoothEncode.io.sewIs16 := sewIs16
+  vs1Set1BoothEncode.io.sewIs32 := sewIs32
+  vs1Set1BoothEncode.io.sewIs64 := sewIs64
+  vs1Set1BoothPos  := vs1Set1BoothEncode.io.positive
+  vs1Set1BoothNeg  := vs1Set1BoothEncode.io.negative
+  vs1Set1BoothDoZ  := vs1Set1BoothEncode.io.doubleOrZero
+  vs1Set1BoothNonZ := vs1Set1BoothEncode.io.nonZero
+
+  val vs1Set2BoothEncode = Module(new vs1Booth())
+  vs1Set2BoothEncode.io.vs1     := vs1Set2
+  vs1Set2BoothEncode.io.sewIs8  := sewIs8
+  vs1Set2BoothEncode.io.sewIs16 := sewIs16
+  vs1Set2BoothEncode.io.sewIs32 := sewIs32
+  vs1Set2BoothEncode.io.sewIs64 := sewIs64
+  vs1Set2BoothPos  := vs1Set2BoothEncode.io.positive
+  vs1Set2BoothNeg  := vs1Set2BoothEncode.io.negative
+  vs1Set2BoothDoZ  := vs1Set2BoothEncode.io.doubleOrZero
+  vs1Set2BoothNonZ := vs1Set2BoothEncode.io.nonZero
   
-  // 2.generate vs2 signed bits
-  val sgnVs2 = Wire(Vec(8, UInt(1.W)))
+  // 3.generate vs2 signed bits
+  val sgnVs2Set1 = Wire(Vec(8, UInt(1.W)))
+  val sgnVs2Set2 = Wire(Vec(8, UInt(1.W)))
   
-  val vs2SignGen = Module(new vs2SgnGenerator())
-  vs2SignGen.io.vs2            := vs2
-  vs2SignGen.io.vs2_is_signed  := vs2_is_signed
-  vs2SignGen.io.sewIs8         := sewIs8
-  vs2SignGen.io.sewIs16        := sewIs16
-  vs2SignGen.io.sewIs32        := sewIs32
-  vs2SignGen.io.sewIs64        := sewIs64
-  sgnVs2 := vs2SignGen.io.sgnVs2
+  val vs2Set1SignGen = Module(new vs2SgnGenerator())
+  vs2Set1SignGen.io.vs2            := vs2Set1
+  vs2Set1SignGen.io.vs2_is_signed  := vs2_is_signed
+  vs2Set1SignGen.io.sewIs8         := sewIs8
+  vs2Set1SignGen.io.sewIs16        := sewIs16
+  vs2Set1SignGen.io.sewIs32        := sewIs32
+  vs2Set1SignGen.io.sewIs64        := sewIs64
+  sgnVs2Set1 := vs2Set1SignGen.io.sgnVs2
+
+  val vs2Set2SignGen = Module(new vs2SgnGenerator())
+  vs2Set2SignGen.io.vs2            := vs2Set2
+  vs2Set2SignGen.io.vs2_is_signed  := vs2_is_signed
+  vs2Set2SignGen.io.sewIs8         := sewIs8
+  vs2Set2SignGen.io.sewIs16        := sewIs16
+  vs2Set2SignGen.io.sewIs32        := sewIs32
+  vs2Set2SignGen.io.sewIs64        := sewIs64
+  sgnVs2Set2 := vs2Set2SignGen.io.sgnVs2
  
-  // 3.generate signed and carry bits for partial products
-  val partProdCin = Wire(Vec(32, UInt(1.W)))
-  val partProdSgn = Wire(Vec(32, UInt(1.W)))
+  // 4.generate signed and carry bits for partial products
+  val partProdCinSet1 = Wire(Vec(32, UInt(1.W)))
+  val partProdSgnSet1 = Wire(Vec(32, UInt(1.W)))
+  
+  val partProdCinSet2 = Wire(Vec(32, UInt(1.W)))
+  val partProdSgnSet2 = Wire(Vec(32, UInt(1.W)))
 
-  val ppSgnAndCBGen = Module(new partProdSgnAndCarryBitGen())
-  ppSgnAndCBGen.io.isSub            := isSub
-  ppSgnAndCBGen.io.vs2_is_signed    := vs2_is_signed
-  ppSgnAndCBGen.io.sewIs8           := sewIs8
-  ppSgnAndCBGen.io.sewIs16          := sewIs16
-  ppSgnAndCBGen.io.sewIs32          := sewIs32
-  ppSgnAndCBGen.io.sewIs64          := sewIs64
-  ppSgnAndCBGen.io.sgnVs2           := sgnVs2
-  ppSgnAndCBGen.io.vs1BoothPos      := vs1BoothPos
-  ppSgnAndCBGen.io.vs1BoothNeg      := vs1BoothNeg
-  ppSgnAndCBGen.io.vs1BoothNonZ     := vs1BoothNonZ
-  partProdCin := ppSgnAndCBGen.io.partProdCin
-  partProdSgn := ppSgnAndCBGen.io.partProdSgn
+  val ppSgnAndCBGenSet1 = Module(new partProdSgnAndCarryBitGen(true))
+  ppSgnAndCBGenSet1.io.isSub            := isSub
+  ppSgnAndCBGenSet1.io.isComp           := isComp
+  ppSgnAndCBGenSet1.io.isConj           := isConj
+  ppSgnAndCBGenSet1.io.vs2_is_signed    := vs2_is_signed
+  ppSgnAndCBGenSet1.io.sewIs8           := sewIs8
+  ppSgnAndCBGenSet1.io.sewIs16          := sewIs16
+  ppSgnAndCBGenSet1.io.sewIs32          := sewIs32
+  ppSgnAndCBGenSet1.io.sewIs64          := sewIs64
+  ppSgnAndCBGenSet1.io.sgnVs2           := sgnVs2Set1
+  ppSgnAndCBGenSet1.io.vs1BoothPos      := vs1Set1BoothPos
+  ppSgnAndCBGenSet1.io.vs1BoothNeg      := vs1Set1BoothNeg
+  ppSgnAndCBGenSet1.io.vs1BoothNonZ     := vs1Set1BoothNonZ
+  partProdCinSet1 := ppSgnAndCBGenSet1.io.partProdCin
+  partProdSgnSet1 := ppSgnAndCBGenSet1.io.partProdSgn
 
-  // 4.generate partial product
-  val partProd = Wire(Vec(32, UInt(68.W)))
+  val ppSgnAndCBGenSet2 = Module(new partProdSgnAndCarryBitGen(false))
+  ppSgnAndCBGenSet2.io.isSub            := isSub
+  ppSgnAndCBGenSet2.io.isComp           := isComp
+  ppSgnAndCBGenSet2.io.isConj           := isConj
+  ppSgnAndCBGenSet2.io.vs2_is_signed    := vs2_is_signed
+  ppSgnAndCBGenSet2.io.sewIs8           := sewIs8
+  ppSgnAndCBGenSet2.io.sewIs16          := sewIs16
+  ppSgnAndCBGenSet2.io.sewIs32          := sewIs32
+  ppSgnAndCBGenSet2.io.sewIs64          := sewIs64
+  ppSgnAndCBGenSet2.io.sgnVs2           := sgnVs2Set2
+  ppSgnAndCBGenSet2.io.vs1BoothPos      := vs1Set2BoothPos
+  ppSgnAndCBGenSet2.io.vs1BoothNeg      := vs1Set2BoothNeg
+  ppSgnAndCBGenSet2.io.vs1BoothNonZ     := vs1Set2BoothNonZ
+  partProdCinSet2 := ppSgnAndCBGenSet2.io.partProdCin
+  partProdSgnSet2 := ppSgnAndCBGenSet2.io.partProdSgn
+
+  dontTouch(ppSgnAndCBGenSet2.partProdCin)
+  dontTouch(ppSgnAndCBGenSet2.vs1BoothNeg)
+  dontTouch(ppSgnAndCBGenSet2.vs1BoothPos)
+  dontTouch(ppSgnAndCBGenSet2.isSub)
+  dontTouch(ppSgnAndCBGenSet2.isConj)
+  dontTouch(ppSgnAndCBGenSet2.isComp)
+
+  // 5.generate partial product
+  val partProd       = Wire(Vec(32, UInt(68.W)))
+  val partProdCompE1 = Wire(Vec(8,  UInt(20.W)))
+  val partProdCompE2 = Wire(Vec(8,  UInt(20.W)))
+  val partProdCompE3 = Wire(Vec(8,  UInt(20.W)))
+  val partProdCompE4 = Wire(Vec(8,  UInt(20.W)))
   
   val partProdGen = Module(new partProdGenerator())
-  partProdGen.io.partProdCin    := partProdCin
-  partProdGen.io.partProdSgn    := partProdSgn
-  partProdGen.io.vs1BoothDoZ    := vs1BoothDoZ
-  partProdGen.io.vs1BoothNonZ   := vs1BoothNonZ
+  partProdGen.io.partProdCin    := partProdCinSet1
+  partProdGen.io.partProdSgn    := partProdSgnSet1
+  partProdGen.io.vs1BoothDoZ    := vs1Set1BoothDoZ
+  partProdGen.io.vs1BoothNonZ   := vs1Set1BoothNonZ
   partProdGen.io.sewIs8         := sewIs8
   partProdGen.io.sewIs16        := sewIs16
   partProdGen.io.sewIs32        := sewIs32
   partProdGen.io.sewIs64        := sewIs64
-  partProdGen.io.vs2            := vs2
+  partProdGen.io.vs2            := vs2Set1
   partProd := partProdGen.io.partProd
 
+  val partProdCompGen1 = Module(new partProdCompGenerator())
+  partProdCompGen1.io.partProdCinSet2  := VecInit(partProdCinSet2.slice(0,8))
+  partProdCompGen1.io.partProdSgnSet2  := VecInit(partProdSgnSet2.slice(0,8))
+  partProdCompGen1.io.vs1Set2BoothDoZ  := VecInit(vs1Set2BoothDoZ.slice(0,8))
+  partProdCompGen1.io.vs1Set2BoothNonZ := VecInit(vs1Set2BoothNonZ.slice(0,8))
+  partProdCompGen1.io.vs2ElementSet2   := vs2Set2(15,0)
+  partProdCompE1 := partProdCompGen1.io.partProdComp
+
+  val partProdCompGen2 = Module(new partProdCompGenerator())
+  partProdCompGen2.io.partProdCinSet2  := VecInit(partProdCinSet2.slice(8,16))
+  partProdCompGen2.io.partProdSgnSet2  := VecInit(partProdSgnSet2.slice(8,16))
+  partProdCompGen2.io.vs1Set2BoothDoZ  := VecInit(vs1Set2BoothDoZ.slice(8,16))
+  partProdCompGen2.io.vs1Set2BoothNonZ := VecInit(vs1Set2BoothNonZ.slice(8,16))
+  partProdCompGen2.io.vs2ElementSet2   := vs2Set2(31,16)
+  partProdCompE2 := partProdCompGen2.io.partProdComp
+
+  val partProdCompGen3 = Module(new partProdCompGenerator())
+  partProdCompGen3.io.partProdCinSet2  := VecInit(partProdCinSet2.slice(16,24))
+  partProdCompGen3.io.partProdSgnSet2  := VecInit(partProdSgnSet2.slice(16,24))
+  partProdCompGen3.io.vs1Set2BoothDoZ  := VecInit(vs1Set2BoothDoZ.slice(16,24))
+  partProdCompGen3.io.vs1Set2BoothNonZ := VecInit(vs1Set2BoothNonZ.slice(16,24))
+  partProdCompGen3.io.vs2ElementSet2   := vs2Set2(47,32)
+  partProdCompE3 := partProdCompGen3.io.partProdComp
   
-  // 5.generate wallace tree
+  val partProdCompGen4 = Module(new partProdCompGenerator())
+  partProdCompGen4.io.partProdCinSet2  := VecInit(partProdCinSet2.slice(24,32))
+  partProdCompGen4.io.partProdSgnSet2  := VecInit(partProdSgnSet2.slice(24,32))
+  partProdCompGen4.io.vs1Set2BoothDoZ  := VecInit(vs1Set2BoothDoZ.slice(24,32))
+  partProdCompGen4.io.vs1Set2BoothNonZ := VecInit(vs1Set2BoothNonZ.slice(24,32))
+  partProdCompGen4.io.vs2ElementSet2   := vs2Set2(63,48)
+  partProdCompE4 := partProdCompGen4.io.partProdComp
+
+  
+  // 6.generate wallace tree
   val wallaceTree = Wire(Vec(33, UInt(152.W)))
   val wallaceLine34NonFixP = Wire(UInt(152.W))
   val wallaceLine34FixP    = Wire(UInt(152.W))
 
+  val wallaceTreeCompE1 = Wire(Vec(9, UInt(33.W)))
+  val wallaceTreeCompE2 = Wire(Vec(9, UInt(33.W)))
+  val wallaceTreeCompE3 = Wire(Vec(9, UInt(33.W)))
+  val wallaceTreeCompE4 = Wire(Vec(9, UInt(33.W)))
+
   val wallaceTreeGen = Module(new wallaceTreeGenerator())
   wallaceTreeGen.io.partProd      := partProd
-  wallaceTreeGen.io.vs1           := vs1
-  wallaceTreeGen.io.vs2           := vs2
+  wallaceTreeGen.io.vs1           := vs1Set1
+  wallaceTreeGen.io.vs2           := vs2Set1
   wallaceTreeGen.io.oldVd         := oldVd
-  wallaceTreeGen.io.partProdCin   := partProdCin
+  wallaceTreeGen.io.partProdCin   := partProdCinSet1
   wallaceTreeGen.io.vs1_is_signed := vs1_is_signed
   wallaceTreeGen.io.vs2_is_signed := vs2_is_signed
   wallaceTreeGen.io.vd_is_signed  := vd_is_signed
   wallaceTreeGen.io.widen         := widen
   wallaceTreeGen.io.isMacc        := isMacc
+  wallaceTreeGen.io.isComp        := isComp
   wallaceTreeGen.io.sewIs8        := sewIs8
   wallaceTreeGen.io.sewIs16       := sewIs16
   wallaceTreeGen.io.sewIs32       := sewIs32
@@ -149,25 +265,70 @@ class VIMac64bStage1 extends Module {
   wallaceLine34NonFixP := wallaceTreeGen.io.wallaceLine34NonFixP
   wallaceLine34FixP    := wallaceTreeGen.io.wallaceLine34FixP
 
-  // 6.wallace compress stage 1
+  val wallaceTreeCompGen1 = Module(new wallaceTreeCompGenerator())
+  wallaceTreeCompGen1.io.partProdComp    := partProdCompE1
+  wallaceTreeCompGen1.io.partProdCinSet2 := VecInit(partProdCinSet2.slice(0,8))
+  wallaceTreeCompE1 := wallaceTreeCompGen1.io.wallaceTreeComp
+
+  val wallaceTreeCompGen2 = Module(new wallaceTreeCompGenerator())
+  wallaceTreeCompGen2.io.partProdComp    := partProdCompE2
+  wallaceTreeCompGen2.io.partProdCinSet2 := VecInit(partProdCinSet2.slice(8,16))
+  wallaceTreeCompE2 := wallaceTreeCompGen2.io.wallaceTreeComp
+  
+  val wallaceTreeCompGen3 = Module(new wallaceTreeCompGenerator())
+  wallaceTreeCompGen3.io.partProdComp    := partProdCompE3
+  wallaceTreeCompGen3.io.partProdCinSet2 := VecInit(partProdCinSet2.slice(16,24))
+  wallaceTreeCompE3 := wallaceTreeCompGen3.io.wallaceTreeComp
+  
+  val wallaceTreeCompGen4 = Module(new wallaceTreeCompGenerator())
+  wallaceTreeCompGen4.io.partProdComp    := partProdCompE4
+  wallaceTreeCompGen4.io.partProdCinSet2 := VecInit(partProdCinSet2.slice(24,32))
+  wallaceTreeCompE4 := wallaceTreeCompGen4.io.wallaceTreeComp
+
+  // 7.wallace compress stage 1
   val compStage1Results = Wire(Vec(7, UInt(152.W)))
+  val complexSumVec  = Wire(Vec(4, UInt(33.W)))
+  val complexCoutVec = Wire(Vec(4, UInt(33.W)))
   
   val wallace3to2CompStage1 = Module(new wallace3to2CompressorStage1())
   wallace3to2CompStage1.io.wallaceTree := wallaceTree
   compStage1Results := wallace3to2CompStage1.io.compStage1Results
 
+  val wallace3to2ComplexComp1 = Module(new wallace3to2ComplexCompressor())
+  wallace3to2ComplexComp1.io.wallaceTreeComp := wallaceTreeCompE1
+  complexSumVec(0)  := wallace3to2ComplexComp1.io.complexSum
+  complexCoutVec(0) := wallace3to2ComplexComp1.io.complexCout
+
+  val wallace3to2ComplexComp2 = Module(new wallace3to2ComplexCompressor())
+  wallace3to2ComplexComp2.io.wallaceTreeComp := wallaceTreeCompE2
+  complexSumVec(1)  := wallace3to2ComplexComp2.io.complexSum
+  complexCoutVec(1) := wallace3to2ComplexComp2.io.complexCout
+
+  val wallace3to2ComplexComp3 = Module(new wallace3to2ComplexCompressor())
+  wallace3to2ComplexComp3.io.wallaceTreeComp := wallaceTreeCompE3
+  complexSumVec(2)  := wallace3to2ComplexComp3.io.complexSum
+  complexCoutVec(2) := wallace3to2ComplexComp3.io.complexCout
+
+  val wallace3to2ComplexComp4 = Module(new wallace3to2ComplexCompressor())
+  wallace3to2ComplexComp4.io.wallaceTreeComp := wallaceTreeCompE4
+  complexSumVec(3)  := wallace3to2ComplexComp4.io.complexSum
+  complexCoutVec(3) := wallace3to2ComplexComp4.io.complexCout
+
   io.out.compStage1ResultsS1    := compStage1Results
+  io.out.complexSumVecS1        := complexSumVec
+  io.out.complexCoutVecS1       := complexCoutVec
   io.out.wallaceLine34NonFixPS1 := wallaceLine34NonFixP
   io.out.wallaceLine34FixPS1    := wallaceLine34FixP
-  io.out.highHalfS1          := highHalf
-  io.out.uopIdxS1            := uopIdx
-  io.out.widenS1             := widen
-  io.out.vxrmS1              := vxrm
-  io.out.isFixPS1            := isFixP
-  io.out.sewIs8S1            := sewIs8
-  io.out.sewIs16S1           := sewIs16
-  io.out.sewIs32S1           := sewIs32
-  io.out.sewIs64S1           := sewIs64
+  io.out.highHalfS1             := highHalf
+  io.out.uopIdxS1               := uopIdx
+  io.out.widenS1                := widen
+  io.out.vxrmS1                 := vxrm
+  io.out.isFixPS1               := isFixP
+  io.out.isCompS1               := isComp
+  io.out.sewIs8S1               := sewIs8
+  io.out.sewIs16S1              := sewIs16
+  io.out.sewIs32S1              := sewIs32
+  io.out.sewIs64S1              := sewIs64
 }
 
 class vs1Booth extends Module {
@@ -247,9 +408,11 @@ class vs2SgnGenerator extends Module {
   }
 }
 
-class partProdSgnAndCarryBitGen extends Module {
+class partProdSgnAndCarryBitGen(isSet1: Boolean) extends Module {
   val io = IO(new Bundle {
     val isSub         = Input(Bool())
+    val isComp        = Input(Bool())
+    val isConj        = Input(Bool())
     val vs2_is_signed = Input(Bool())
     val sewIs8        = Input(Bool())
     val sewIs16       = Input(Bool())
@@ -265,6 +428,8 @@ class partProdSgnAndCarryBitGen extends Module {
   })
 
   val isSub         = io.isSub
+  val isComp        = io.isComp
+  val isConj        = io.isConj
   val vs2_is_signed = io.vs2_is_signed
   val sewIs64       = io.sewIs64
   val sewIs32       = io.sewIs32
@@ -277,7 +442,19 @@ class partProdSgnAndCarryBitGen extends Module {
   
   val partProdCin   = Wire(Vec(32, UInt(1.W)))
   for (i <- 0 until 32) {
-    partProdCin(i) := vs1BoothNeg(i) & ~isSub | vs1BoothPos(i) & isSub
+    if(isSet1){
+      if(((i >= 8) && (i <= 15)) || (i >= 24)) {
+        partProdCin(i) := vs1BoothNeg(i) & ((~isSub & ~isComp) | (~isConj & isComp)) | vs1BoothPos(i) & ((isSub & ~isComp) | (isConj & isComp))
+      } else {
+        partProdCin(i) := vs1BoothNeg(i) & ~isSub | vs1BoothPos(i) & isSub
+      }
+    } else {
+      if ((i <= 7) || ((i >= 16) && (i <= 23))) {
+        partProdCin(i) := vs1BoothNeg(i) & ((~isSub & ~isComp) | (isConj & isComp)) | vs1BoothPos(i) & ((isSub & ~isComp) | (~isConj & isComp))
+      } else {
+        partProdCin(i) := vs1BoothNeg(i) & ~isSub | vs1BoothPos(i) & isSub
+      }
+    }
   }
   io.partProdCin := partProdCin
 
@@ -360,6 +537,32 @@ class partProdGenerator extends Module {
   }
 }
 
+class partProdCompGenerator extends Module {
+  val io = IO(new Bundle {
+    val partProdCinSet2   = Input(Vec(8, UInt(1.W)))
+    val partProdSgnSet2   = Input(Vec(8, UInt(1.W)))
+    val vs1Set2BoothDoZ   = Input(Vec(8, Bool()))
+    val vs1Set2BoothNonZ  = Input(Vec(8, Bool()))
+    val vs2ElementSet2    = Input(UInt(16.W))
+
+    val partProdComp = Output(Vec(8, UInt(20.W)))
+  })
+
+  val partProdCinSet2  = io.partProdCinSet2
+  val partProdSgnSet2  = io.partProdSgnSet2
+  val vs1Set2BoothDoZ  = io.vs1Set2BoothDoZ
+  val vs1Set2BoothNonZ = io.vs1Set2BoothNonZ
+  val vs2ElementSet2   = io.vs2ElementSet2
+
+  val partProdComp = Wire(Vec(8, UInt(20.W)))
+  partProdComp(0) := Cat(~partProdSgnSet2(0), partProdSgnSet2(0), partProdSgnSet2(0), Fill(17, vs1Set2BoothNonZ(0)) & Mux(vs1Set2BoothDoZ(0), Cat(Fill(16, partProdCinSet2(0)) ^ vs2ElementSet2, partProdCinSet2(0)), Cat(partProdSgnSet2(0), Fill(16, partProdCinSet2(0)) ^ vs2ElementSet2)))
+  for (i <-1 until 8) {
+    partProdComp(i) := Cat(1.U(2.W), ~partProdSgnSet2(i), Fill(17, vs1Set2BoothNonZ(i)) & Mux(vs1Set2BoothDoZ(i), Cat(Fill(16, partProdCinSet2(i)) ^ vs2ElementSet2, partProdCinSet2(i)), Cat(partProdSgnSet2(i), Fill(16, partProdCinSet2(i)) ^ vs2ElementSet2)))
+  }
+
+  io.partProdComp := partProdComp
+}
+
 class wallaceTreeGenerator extends Module {
   val io = IO(new Bundle {
     val partProd      = Input(Vec(32, UInt(68.W)))
@@ -372,6 +575,7 @@ class wallaceTreeGenerator extends Module {
     val vd_is_signed  = Input(Bool())
     val widen         = Input(Bool())
     val isMacc        = Input(Bool())
+    val isComp        = Input(Bool())
     val sewIs8        = Input(Bool())
     val sewIs16       = Input(Bool())
     val sewIs32       = Input(Bool())
@@ -433,6 +637,7 @@ class wallaceTreeGenerator extends Module {
   val vd_is_signed  = io.vd_is_signed
   val widen         = io.widen
   val isMacc        = io.isMacc
+  val isComp        = io.isComp
   val sewIs8        = io.sewIs8
   val sewIs16       = io.sewIs16
   val sewIs32       = io.sewIs32
@@ -448,7 +653,7 @@ class wallaceTreeGenerator extends Module {
 
   wallaceTree(32) := Mux(io.isMacc, Mux1H(Seq(
     sewIs8  -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 16).reverse.map(x => Cat(0.U(2.W),  BitsExtend(x, 17, vd_is_signed)))), Cat(UIntSplit(oldVd, 8 ).map(x => Cat(0.U(2.W),  BitsExtend(x, 17, vd_is_signed))).reverse)),
-    sewIs16 -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 32).reverse.map(x => Cat(0.U(5.W),  BitsExtend(x, 33, vd_is_signed)))), Cat(UIntSplit(oldVd, 16).map(x => Cat(0.U(5.W),  BitsExtend(x, 33, vd_is_signed))).reverse)),
+    sewIs16 -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 32).reverse.map(x => Cat(0.U(5.W),  BitsExtend(x, 33, vd_is_signed)))), Cat(UIntSplit(oldVd, 16).map(x => Mux(isComp, Cat(0.U(5.W), BitsExtend(x, 18, true.B), 0.U(15.W)), Cat(0.U(5.W), BitsExtend(x, 33, vd_is_signed)))).reverse)),
     sewIs32 -> Mux(io.widen, Cat(UIntSplit(Cat(oldVd, oldVd), 64).reverse.map(x => Cat(0.U(11.W), BitsExtend(x, 65, vd_is_signed)))), Cat(UIntSplit(oldVd, 32).map(x => Cat(0.U(11.W), BitsExtend(x, 65, vd_is_signed))).reverse)),
     sewIs64 -> Cat(0.U(23.W), BitsExtend(oldVd, 129, vd_is_signed))
   )), 0.U)
@@ -472,7 +677,29 @@ class wallaceTreeGenerator extends Module {
   io.wallaceLine34FixP    := wallaceLine34FixP
 }
 
+class wallaceTreeCompGenerator extends Module {
+  val io = IO(new Bundle {
+    val partProdComp    = Input(Vec(8, UInt(20.W)))
+    val partProdCinSet2 = Input(Vec(8, UInt(1.W)))
+
+    val wallaceTreeComp = Output(Vec(9, UInt(33.W)))
+  })
+
+  val partProdComp    = io.partProdComp
+  val partProdCinSet2 = io.partProdCinSet2
+
+  val wallaceTreeComp = Wire(Vec(9, UInt(33.W)))
+  wallaceTreeComp(0) := Cat(0.U(13.W), partProdComp(0))
+  for (i <- 1 until 8) {
+    wallaceTreeComp(i) := Cat(0.U((14-2*i).W), partProdComp(i)(18,0), 0.U(1.W), partProdCinSet2(i-1), 0.U((2*i-2).W))
+  }
+  wallaceTreeComp(8) := Cat(0.U(18.W), partProdCinSet2(7), 0.U(14.W))
+  
+  io.wallaceTreeComp := wallaceTreeComp
+}
+
 class wallace3to2CompressorStage1 extends Module with wallace3to2Compressor {
+  override val width = 152
   val io = IO(new Bundle {
     val wallaceTree = Input(Vec(33, UInt(152.W)))
 
@@ -482,4 +709,20 @@ class wallace3to2CompressorStage1 extends Module with wallace3to2Compressor {
   val wallaceTree = io.wallaceTree
   val result = wallaceCompress(7, wallaceTree)
   io.compStage1Results := result
+}
+
+class wallace3to2ComplexCompressor extends Module with wallace3to2Compressor {
+  override val width = 33
+   val io = IO(new Bundle {
+    val wallaceTreeComp = Input(Vec(9, UInt(33.W)))
+
+    val complexSum  = Output(UInt(33.W))
+    val complexCout = Output(UInt(33.W))
+  })
+
+  val wallaceTreeComp = io.wallaceTreeComp
+  val result = wallaceCompress(2, wallaceTreeComp)
+  
+  io.complexSum  := result(0)
+  io.complexCout := result(1)
 }
