@@ -121,146 +121,82 @@ ElementOutput VGMIntegerMAC::calculation_e16(ElementInput input) {
       break;
     }
     case VSCMUL: {
+      __int128_t tempResult = 0;
       if (input.isRe) {
-        __int128_t tempResult = src1ReSigned*src2ReSigned - src1ImSigned*src2ImSigned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = src1ReSigned*src2ReSigned - src1ImSigned*src2ImSigned;
       } else {
-        __int128_t tempResult = src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned;
+      }
+      INT_ROUNDING(tempResult, input.rm_s, 15);
+      __int128_t y = tempResult >> 15;
+      if (y > 32767) {
+        output.result = 0x7FFF;
+        output.vxsat = 1;
+      } else if (y < -32768) {
+        output.result = 0x8000;
+        output.vxsat = 1;
+      } else {
+        output.result = (uint16_t)(int16_t)y;
       }
       break;
     }
     case VSCMULCJ: {
+      __int128_t tempResult = 0;
       if (input.isRe) {
-        __int128_t tempResult = src1ReSigned*src2ReSigned + src1ImSigned*src2ImSigned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = src1ReSigned*src2ReSigned + src1ImSigned*src2ImSigned;
       } else {
-        __int128_t tempResult = -src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = -src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned;
+      }
+      INT_ROUNDING(tempResult, input.rm_s, 15);
+      __int128_t y = tempResult >> 15;
+      if (y > 32767) {
+        output.result = 0x7FFF;
+        output.vxsat = 1;
+      } else if (y < -32768) {
+        output.result = 0x8000;
+        output.vxsat = 1;
+      } else {
+        output.result = (uint16_t)(int16_t)y;
       }
       break;
     }
     case VSCMACC: {
+      __int128_t tempResult = 0;
       if (input.isRe) {
-        __int128_t tempResult = src1ReSigned*src2ReSigned - src1ImSigned*src2ImSigned + src3CompAligned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = src1ReSigned*src2ReSigned - src1ImSigned*src2ImSigned + src3CompAligned;
       } else {
-        __int128_t tempResult = src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned + src3CompAligned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned + src3CompAligned;
+      }
+      INT_ROUNDING(tempResult, input.rm_s, 15);
+      __int128_t y = tempResult >> 15;
+      if (y > 32767) {
+        output.result = 0x7FFF;
+        output.vxsat = 1;
+      } else if (y < -32768) {
+        output.result = 0x8000;
+        output.vxsat = 1;
+      } else {
+        output.result = (uint16_t)(int16_t)y;
       }
       break;
     }
     case VSCMACCCJ: {
+      __int128_t tempResult = 0;
       if (input.isRe) {
-        __int128_t tempResult = src1ReSigned*src2ReSigned + src1ImSigned*src2ImSigned + src3CompAligned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = src1ReSigned*src2ReSigned + src1ImSigned*src2ImSigned + src3CompAligned;
       } else {
-        __int128_t tempResult = -src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned + src3CompAligned;
-        INT_ROUNDING(tempResult, input.rm_s, 15);
-        __uint128_t u = (__uint128_t)tempResult;
-        bool bit32 = (u >> 32) & 1u;
-        bool bit31 = (u >> 31) & 1u;
-        bool bit30 = (u >> 30) & 1u;
-        if ((!bit32) & (bit31 | bit30)) {
-          output.result = (uint16_t) 0x7FFF;
-          output.vxsat = 1;
-        } else if (bit32 & !(bit31 & bit30)) {
-          output.result = (uint16_t) 0x8000;
-          output.vxsat = 1;
-        } else {
-          output.result = (uint16_t)(tempResult >> 15);
-        }
+        tempResult = -src1ReSigned*src2ImSigned + src1ImSigned*src2ReSigned + src3CompAligned;
+      }
+      INT_ROUNDING(tempResult, input.rm_s, 15);
+      __int128_t y = tempResult >> 15;
+      if (y > 32767) {
+        output.result = 0x7FFF;
+        output.vxsat = 1;
+      } else if (y < -32768) {
+        output.result = 0x8000;
+        output.vxsat = 1;
+      } else {
+        output.result = (uint16_t)(int16_t)y;
       }
       break;
     }

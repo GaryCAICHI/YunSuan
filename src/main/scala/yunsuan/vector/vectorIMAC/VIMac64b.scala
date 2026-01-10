@@ -1,5 +1,8 @@
 package yunsuan.vector.mac
 
+import chisel3.stage.ChiselGeneratorAnnotation
+import circt.stage._
+
 import chisel3._
 import chisel3.util._
 import yunsuan.vector._
@@ -78,4 +81,10 @@ class VIMac64b extends Module {
 
   io.vd    := stage3.io.out.vd
   io.vxsat := stage3.io.out.vxsat
+}
+
+object VIMac64b extends App {
+  (new ChiselStage).execute(args, Seq(
+    ChiselGeneratorAnnotation(() => new VIMac64b()), FirtoolOption("--lowering-options=explicitBitcast")
+  ))
 }

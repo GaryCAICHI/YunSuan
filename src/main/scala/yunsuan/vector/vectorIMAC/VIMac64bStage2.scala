@@ -1,5 +1,8 @@
 package yunsuan.vector.mac
 
+import chisel3.stage.ChiselGeneratorAnnotation
+import circt.stage._
+
 import chisel3._
 import chisel3.util._
 import yunsuan.vector._
@@ -251,4 +254,10 @@ class fullAdder152b extends Module {
   })
 
   io.sumFinal := io.sum34to2 + io.cout34to2
+}
+
+object VIMac64bStage2 extends App {
+  (new ChiselStage).execute(args, Seq(
+    ChiselGeneratorAnnotation(() => new VIMac64bStage2()), FirtoolOption("--lowering-options=explicitBitcast")
+  ))
 }

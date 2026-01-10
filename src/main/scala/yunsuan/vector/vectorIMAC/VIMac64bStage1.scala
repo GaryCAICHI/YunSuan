@@ -1,5 +1,8 @@
 package yunsuan.vector.mac
 
+import chisel3.stage.ChiselGeneratorAnnotation
+import circt.stage._
+
 import chisel3._
 import chisel3.util._
 import yunsuan.vector._
@@ -725,4 +728,10 @@ class wallace3to2ComplexCompressor extends Module with wallace3to2Compressor {
   
   io.complexSum  := result(0)
   io.complexCout := result(1)
+}
+
+object VIMac64bStage1 extends App {
+  (new ChiselStage).execute(args, Seq(
+    ChiselGeneratorAnnotation(() => new VIMac64bStage1()), FirtoolOption("--lowering-options=explicitBitcast")
+  ))
 }
