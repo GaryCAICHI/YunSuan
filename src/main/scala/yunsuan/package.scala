@@ -398,10 +398,10 @@ package object yunsuan {
     def vnmsub             = LiteralCat(0.U(1.W), INT.S, INT.S, INT.S, FMT.VVV, VimacOpcode.vnmsub) // "b00_111_0_101".U(OpTypeWidth.W) // vnmsub  vnmsub.vv/vnmsub.vx
     def vsmul              = LiteralCat(0.U(1.W), INT.S, INT.S, INT.X, FMT.VVV, VimacOpcode.vsmul)  // "b00_110_0_110".U(OpTypeWidth.W) // vsmul   vsmul.vv/vsmul.vx
 
-    // zvw
+    // Zvbaseband
     def vscmul             = LiteralCat(0.U(1.W), INT.S, INT.S, INT.X, FMT.VVV, VimacOpcode.vscmul)
     def vscmulcj           = LiteralCat(0.U(1.W), INT.S, INT.S, INT.X, FMT.VVV, VimacOpcode.vscmulcj)
-    def vsmacc             = LiteralCat(0.U(1.W), INT.S, INT.S, INT.S, FMT.VVV, VimacOpcode.vscmacc)
+    def vscmacc            = LiteralCat(0.U(1.W), INT.S, INT.S, INT.S, FMT.VVV, VimacOpcode.vscmacc)
     def vscmacccj          = LiteralCat(0.U(1.W), INT.S, INT.S, INT.S, FMT.VVV, VimacOpcode.vscmacccj)
 
 
