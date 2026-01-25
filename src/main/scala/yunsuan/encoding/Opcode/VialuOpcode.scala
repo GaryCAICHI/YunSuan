@@ -19,7 +19,7 @@ object FixedPointConst {
 class VIAluOpcode extends Bundle {
   val op = UInt(6.W)
   def isAdd: Bool = !op(3) & !op(2) & !op(1) & !op(0) // op === VialuOpcode.vadd
-  def isSub: Bool = !op(3)
+  def isSub: Bool = !isZvbaseband & op(4)
   def isVmsbc: Bool = op(4) & !op(3) &  op(2) & !op(1) & !op(0)
   def isBitLogic:   Bool = !op(4) & !op(3)
   def isShiftLogic: Bool = !op(4) &  op(3)
@@ -58,6 +58,7 @@ class VIAluOpcode extends Bundle {
   def isCtz: Bool =  op(0)
 
   // Zvbasebamd
+  def isZvbaseband : Bool = op(3) & !op(2) & op(1) & !op(0)
   def isReImSwap: Bool = isSatLogic &  op(4) & op(3)
   def isReNeg:    Bool = isSatLogic &  op(5) & op(3)
   def isImNeg:    Bool = isSatLogic & !op(5) & op(3)

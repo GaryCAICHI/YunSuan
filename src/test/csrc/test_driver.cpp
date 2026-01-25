@@ -78,8 +78,8 @@ uint16_t TestDriver::gen_random_optype() {
     }
     case VIntegerALUV2: {
       uint16_t viaf_all_optype[VIAF_NUM] = VIAF_ALL_OPTYPES;
-      // return viaf_all_optype[rand() % VIAF_NUM];
-      return viaf_all_optype[(rand() % 3) + 72];
+      return viaf_all_optype[rand() % VIAF_NUM];
+      // return viaf_all_optype[(rand() % 3) + 72];
       break;
     }
     case VIntegerDivider:{
