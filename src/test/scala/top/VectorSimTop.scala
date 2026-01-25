@@ -10,13 +10,13 @@ import yunsuan.vector.mac.VIMac
 import yunsuan.vector._
 import yunsuan.scalar.INT2FP
 import yunsuan.scalar.FPCVT
-
+import yunsuan.scalar.Mul
 
 trait VSPParameter {
   val VLEN       : Int = 128
   val XLEN       : Int = 64
   val VIA_latency: Int = 0 // TODO: change to 1
-  val VIAF_latency: Int = 1 // TODO:
+  val VIAF_latency: Int = 1
   val VFF_latency: Int = 3 // TODO: check only mul and mul+add, different or not
   val VFD_latency: Int = 99
   val VFA_latency: Int = 1
@@ -24,6 +24,7 @@ trait VSPParameter {
   val VID_latency: Int = 99
   val VCVT_latency: Int = 2 // ??
   val VIMAC_latency: Int = 2
+  val IMUL_latency: Int = 2
 }
 
 object VPUTestFuType { // only use in test, difftest with xs
@@ -38,9 +39,10 @@ object VPUTestFuType { // only use in test, difftest with xs
   def fcvtf2x= "b0000_1000".U(8.W)
   def fcvti2f= "b0000_1001".U(8.W)
   def vimac = "b0000_1010".U(8.W) // not used
+  def imul = "b0000_1011".U(8.W)
 
   def unknown(typ: UInt) = {
-    (typ > 10.U)
+    (typ > 11.U)
   }
 }
 
@@ -60,7 +62,7 @@ class VecInfoBundle extends VPUTestBundle {
 class VSTInputIO extends VPUTestBundle {
   val src = Vec(4, Vec(VLEN/XLEN, UInt(XLEN.W)))
   val fuType = UInt(5.W)
-  val fuOpType = UInt(8.W)
+  val fuOpType = UInt(9.W)
   val sew = UInt(2.W)
   val uop_idx = UInt(6.W)
 
@@ -116,7 +118,8 @@ class SimTop() extends VPUTestModule {
       VPUTestFuType.vcvt -> VCVT_latency.U,
       VPUTestFuType.fcvtf2x -> VCVT_latency.U,
       VPUTestFuType.fcvti2f -> VCVT_latency.U,
-      VPUTestFuType.vimac -> VIMAC_latency.U
+      VPUTestFuType.vimac -> VIMAC_latency.U,
+      VPUTestFuType.imul -> IMUL_latency.U
     )) // fuType --> latency, spec case for div
     assert(!VPUTestFuType.unknown(io.in.bits.fuType))
   }
@@ -150,6 +153,7 @@ class SimTop() extends VPUTestModule {
   val i2f_result = Wire(new VSTOutputIO)
   val fpcvt_result = Wire(new VSTOutputIO)
   val vimac_result = Wire(new VSTOutputIO)
+  val imul_result = Wire(new VSTOutputIO)
   when (io.in.fire || io.out.fire) {
     vfd_result_valid.map(_ := false.B)
   }
@@ -165,6 +169,7 @@ class SimTop() extends VPUTestModule {
     val vcvt = Module(new VectorCvt(XLEN))
     val i2fcvt = Module(new INT2FP(2, XLEN))
     val fpcvt = Module(new FPCVT(XLEN))
+    val imul = Module(new Mul(XLEN))
 
     require(vfa.io.fp_a.getWidth == XLEN)
     vfa.io.fire := busy
@@ -310,6 +315,15 @@ class SimTop() extends VPUTestModule {
     fpcvt_result.vxsat := 0.U
     fpcvt_result.result(i) := fpcvt.io.result
     fpcvt_result.fflags(i) := fpcvt.io.fflags
+
+    // mul
+    imul.io.in.valid := busy
+    imul.io.in.bits.fuOpType := opcode
+    imul.io.in.bits.src(0) := src1
+    imul.io.in.bits.src(1) := src2
+    imul_result.result(i) := imul.io.out
+    imul_result.fflags(i) := 0.U
+    imul_result.vxsat := 0.U
   }
 
   val vperm = Module(new VPermTop)
@@ -335,11 +349,10 @@ class SimTop() extends VPUTestModule {
   vperm_result.fflags(1) := 0.U
   vperm_result.vxsat := 0.U
 
-  val viaf = Module(new VIAluFWrapper)
-  viaf.io.in.bits.fuType := in.fuType
+  val viaf = Module(new VIAluFixPointWrapper)
+  viaf.io.in.valid := busy
   viaf.io.in.bits.fuOpType := opcode
-  viaf.io.in.bits.vsew := sew
-  viaf.io.in.bits.info.vstart := in.vinfo.vstart
+  viaf.io.in.bits.info.vsew := sew
   viaf.io.in.bits.info.vl := in.vinfo.vl
   viaf.io.in.bits.info.vlmul := in.vinfo.vlmul
   viaf.io.in.bits.info.vm := in.vinfo.vm
@@ -347,7 +360,6 @@ class SimTop() extends VPUTestModule {
   viaf.io.in.bits.info.ma := in.vinfo.ma
   viaf.io.in.bits.info.uopIdx := in.uop_idx
   viaf.io.in.bits.info.vxrm := in.rm_s
-  viaf.io.in.valid := true.B
   viaf.io.out.ready := true.B
   viaf.io.in.bits.src.zip(in.src).foreach { case (a, b) => a := b.asUInt }
   viaf_result.result.zipWithIndex.foreach { case (rs, i) => rs := viaf.io.out.bits.data(XLEN * (i + 1) - 1, XLEN * i) }
@@ -423,7 +435,8 @@ class SimTop() extends VPUTestModule {
     VPUTestFuType.vcvt -> vcvt_result,
     VPUTestFuType.fcvtf2x -> fpcvt_result,
     VPUTestFuType.fcvti2f -> i2f_result,
-    VPUTestFuType.vimac -> vimac_result
+    VPUTestFuType.vimac -> vimac_result,
+    VPUTestFuType.imul -> imul_result
   ))
 }
 
