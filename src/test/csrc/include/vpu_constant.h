@@ -132,7 +132,7 @@ extern "C"{
 #define VROL_VV      (binstoi("000101001"))
 #define VROR_VV      (binstoi("000101111"))
 #define VWSLL_VV     (binstoi("010101000"))
-// Zvbaseband
+// xvbbp
 #define VSCADDCONJ_VV (binstoi("001001010"))
 #define VSCADDRQ_VV   (binstoi("001111010"))
 #define VSCADDRTQ_VV  (binstoi("001011010"))
@@ -404,7 +404,7 @@ extern "C"{
   #define VMADD            (binstoi("11100100"))
   #define VNMSUB           (binstoi("11100101"))
   #define VSMUL            (binstoi("11000110"))
-  //Zvbaseband
+  //xvbbp
   #define VSCMUL           (binstoi("11000111"))
   #define VSCMULCJ         (binstoi("11001000"))
   #define VSCMACC          (binstoi("11101001"))

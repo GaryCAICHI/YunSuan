@@ -86,7 +86,7 @@ object VialuOpcode {
   def vmin   = "b011000".U(width.W)
   def vmax   = "b011001".U(width.W)
 
-  // Zvbaseband
+  // xvbbp
   def vscaddconj = "b001010".U(width.W)
   def vscaddrq   = "b111010".U(width.W)
   def vscaddrtq  = "b011010".U(width.W)
