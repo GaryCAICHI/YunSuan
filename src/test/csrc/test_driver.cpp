@@ -11,11 +11,12 @@ extern "C" {
 #include "include/test_driver.h"
 
 TestDriver::TestDriver():
-  issued(false), verbose(true), keepinput(false)
+  issued(false), verbose(false), keepinput(false)
 {
-  // aviod random value
-  set_test_type();
-  gen_next_test_case();
+  test_type.pick_fuType = true;
+  test_type.pick_fuOpType = false;
+  test_type.fuType = VIntegerALUV2;
+  test_type.fuOpType = VSCMUL;
 }
 
 TestDriver::~TestDriver() {
@@ -26,10 +27,10 @@ void TestDriver::set_default_value(VSimTop *dut_ptr) {
   dut_ptr->io_out_ready = true;
 }
 // fix set_test_type to select fuType
-void TestDriver::set_test_type() {
-  test_type.pick_fuType = true;
+void TestDriver::set_test_type(int fu_type) {
+  test_type.pick_fuType = fu_type >= 0;
   test_type.pick_fuOpType = false;
-  test_type.fuType = VIntegerALUV2;
+  test_type.fuType = test_type.pick_fuType ? (uint8_t)fu_type : VIntegerALUV2;
   test_type.fuOpType = VSCMUL;
   printf("Set Test Type Res: fuType:%d fuOpType:%d\n", test_type.fuType, test_type.fuOpType);
 }
@@ -68,7 +69,7 @@ uint16_t TestDriver::gen_random_optype() {
     case VIntegerALU: break;
     case VIntegerMAC:{
       uint8_t vmac_all_optype[VIMAC_NUM] = VIMAC_ALL_OPTYPES;
-      return vmac_all_optype[(rand() % 4) + 16];
+      return vmac_all_optype[rand() % VIMAC_NUM];
       break;
     }
     case VPermutation: { //TODO: add other type
@@ -148,6 +149,10 @@ uint8_t TestDriver::gen_random_sew() {
     case FloatCvtF2X: return (rand()%3)+1 ; break;
     case FloatCvtI2F: return 0 ; break;
     case VIntegerMAC: {
+      if (input.fuOpType == VSCMUL || input.fuOpType == VSCMULCJ ||
+          input.fuOpType == VSCMACC || input.fuOpType == VSCMACCCJ) {
+        return 1;
+      }
       if (input.fuOpType == VWMUL || input.fuOpType == VWMULU || input.fuOpType == VWMULSU ||
           input.fuOpType == VWMACCU || input.fuOpType == VWMACC || input.fuOpType == VWMACCSU || input.fuOpType == VWMACCUS) {
         return rand()%3;
@@ -681,6 +686,7 @@ int TestDriver::diff_output_falling(VSimTop *dut_ptr) {
     return STATE_RUNNING;
   }
 }
+
 
 void TestDriver::display_ref_input() {
   printf("REF Input:\n");

@@ -23,6 +23,7 @@ static inline void print_help(const char *file) {
   printf("  -s, --seed=NUM             use this seed\n");
   printf("  -C, --max-cycles=NUM       execute at most NUM cycles\n");
   printf("  -O, --max-operations=NUM   execute at most NUM instructions\n");
+  printf("      --fu-type=NUM          test one function unit type\n");
   printf("  -b, --log-begin=NUM        display log from NUM th cycle\n");
   printf("  -e, --log-end=NUM          stop display log at NUM th cycle\n");
   printf("      --dump-wave            dump waveform when log is enabled\n");
@@ -38,6 +39,7 @@ inline EmuArgs parse_args(int argc, const char *argv[]) {
     { "seed",              1, NULL, 's' },
     { "max-cycles",        1, NULL, 'C' },
     { "max-operations",    1, NULL, 'O' },
+    { "fu-type",           1, NULL,  0  },
     { "log-begin",         1, NULL, 'b' },
     { "log-end",           1, NULL, 'e' },
     { "help",              0, NULL, 'h' },
@@ -51,6 +53,7 @@ inline EmuArgs parse_args(int argc, const char *argv[]) {
       case 0:
         switch (long_index) {
           case 0: args.enable_waveform = true; continue;
+          case 4: args.fu_type = atoll_strict(optarg, "fu-type"); continue;
         }
       default:
         print_help(argv[0]);
@@ -93,6 +96,8 @@ Emulator::Emulator(int argc, const char *argv[]):
 #endif
   
   test_driver.set_default_value(dut_ptr);
+  test_driver.set_test_type(args.fu_type);
+  test_driver.gen_next_test_case();
   reset_ncycles(10);
 }
 
